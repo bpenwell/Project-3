@@ -3,9 +3,11 @@
 #include <vector>
 #include <math.h>
 #include "eigen3/Eigen/Dense"
+#include "eigen3/Eigen/Eigenvalues" // used to decompose matricies
 
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
+using Eigen::EigenSolver;
 using namespace std;
 
 //Created by Ben Penwell and Adam Landis
@@ -48,10 +50,18 @@ void printMatrix(MatrixXd m, int dimension1, int dimension2)
 void Image::ExtractEigenValues(MatrixXd m, int dimension1, int dimension2)
 {
 	MatrixXd mm_t = m*m.transpose();
-	cout << "m:" << endl;
-	printMatrix(m, m.rows(), m.cols());
-	cout << "m.transpose:" << endl;
-	printMatrix(m.transpose(), m.rows(), m.cols());
+	
+	//cout << "m:" << endl;
+	//printMatrix(m, m.rows(), m.cols());
+	
+	//cout << "m.transpose:" << endl;
+	//printMatrix(m.transpose(), m.rows(), m.cols());
+	
 	cout << "m*m.transpose:" << endl;
 	printMatrix(mm_t, mm_t.rows(), mm_t.cols());
+
+	EigenSolver<MatrixXd> EigenSolver;
+	EigenSolver.compute(mm_t,false); //Initializes eigensolver with something to de-compose
+	printMatrix(EigenSolver.eigenvectors(), EigenSolver.eigenvectors().rows(), EigenSolver.eigenvectors().cols());
+
 }
