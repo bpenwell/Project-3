@@ -7,6 +7,7 @@
 
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
+using Eigen::MatrixXcd;
 using Eigen::EigenSolver;
 using namespace std;
 
@@ -14,11 +15,16 @@ using namespace std;
 //Pattern Recognition, Project 3
 //April 9, 2019
 
+
 class Image{
 public:
-	void ExtractEigenValues(MatrixXd m, int dimension1, int dimension2);
+	void ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2);
+	void SortEigenVectors();
+	void ComputeColumnValue(VectorXd c);
 private:
-	vector<float> eigenVectors;
+	MatrixXcd eigenVectors;
+	vector<VectorXd> sortedEigenVectors;
+
 };
 
 void printMatrix(MatrixXd m, int dimension1, int dimension2);
@@ -29,10 +35,11 @@ int main()
 	MatrixXd g(DIM, DIM);
 
 	g << 1, 0, 0, 2, 1, 1, 0, 0, 1;
-	printMatrix(g, DIM, DIM);
+	//printMatrix(g, DIM, DIM);
 
 	Image testImage;
-	testImage.ExtractEigenValues(g, DIM, DIM);
+	testImage.ExtractEigenVectors(g, DIM, DIM);
+	//testImage.SortEigenVectors();
 }
 
 void printMatrix(MatrixXd m, int dimension1, int dimension2)
@@ -47,21 +54,54 @@ void printMatrix(MatrixXd m, int dimension1, int dimension2)
 	}
 }
 
-void Image::ExtractEigenValues(MatrixXd m, int dimension1, int dimension2)
+void Image::ComputeColumnValue(VectorXd c)
 {
-	MatrixXd mm_t = m*m.transpose();
-	
-	//cout << "m:" << endl;
-	//printMatrix(m, m.rows(), m.cols());
-	
-	//cout << "m.transpose:" << endl;
-	//printMatrix(m.transpose(), m.rows(), m.cols());
-	
-	cout << "m*m.transpose:" << endl;
-	printMatrix(mm_t, mm_t.rows(), mm_t.cols());
+	for (int i = 0; i < c.size(); ++i)
+	{
+		/* code */
+	}
+}
+
+
+void Image::SortEigenVectors()
+{
+	cout << "Rows: " << eigenVectors.rows() << endl;
+	for (int i = 0; i < eigenVectors.cols(); ++i)
+	{
+		complex<double> doubleBarOperation=0.0; //sqrt(x1^2 + .... + xn^2)
+		for (int j = 0; j < eigenVectors.rows(); ++j)
+		{
+			doubleBarOperation += (eigenVectors(j,i)*eigenVectors(j,i));
+			cout << doubleBarOperation << " ";
+		}
+		complex<double> value = sqrt(doubleBarOperation);
+		cout << endl << "Col value: " << i << endl;
+		cout << value << endl;
+		if(sortedEigenVectors.size() == 0)
+		{
+			VectorXd column(eigenVectors.rows());
+		}
+		else
+		{
+
+		}
+		for (int i = 0; i < sortedEigenVectors.size(); ++i)
+		{
+			/* code */
+		}
+	}
+}
+
+void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
+{
+	MatrixXd m_tm = m.transpose()*m;
+
+	cout << "m.transpose*m:" << endl;
+	printMatrix(m_tm, m_tm.rows(), m_tm.cols());
 
 	EigenSolver<MatrixXd> EigenSolver;
-	EigenSolver.compute(mm_t,false); //Initializes eigensolver with something to de-compose
-	printMatrix(EigenSolver.eigenvectors(), EigenSolver.eigenvectors().rows(), EigenSolver.eigenvectors().cols());
+	EigenSolver.compute(m_tm,true); //Initializes eigensolver with something to de-compose
+	eigenVectors = EigenSolver.eigenvectors();
+	cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
 
 }
