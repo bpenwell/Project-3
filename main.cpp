@@ -23,6 +23,7 @@ public:
 	void ComputeColumnValue(VectorXd c);
 private:
 	MatrixXcd eigenVectors;
+	MatrixXcd eigenValues;
 	vector<VectorXd> sortedEigenVectors;
 
 };
@@ -104,4 +105,6 @@ void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
 	eigenVectors = EigenSolver.eigenvectors();
 	cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
 
+	eigenValues = EigenSolver.eigenvalues();
+	cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
 }
