@@ -19,8 +19,6 @@ using namespace std;
 class Image{
 public:
 	void ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2);
-	void SortEigenVectors();
-	void ComputeColumnValue(VectorXd c);
 private:
 	MatrixXcd eigenVectors;
 	MatrixXcd eigenValues;
@@ -40,7 +38,6 @@ int main()
 
 	Image testImage;
 	testImage.ExtractEigenVectors(g, DIM, DIM);
-	//testImage.SortEigenVectors();
 }
 
 void printMatrix(MatrixXd m, int dimension1, int dimension2)
@@ -52,44 +49,6 @@ void printMatrix(MatrixXd m, int dimension1, int dimension2)
 			cout << m(i,j) << " ";
 		}
 		cout << endl;
-	}
-}
-
-void Image::ComputeColumnValue(VectorXd c)
-{
-	for (int i = 0; i < c.size(); ++i)
-	{
-		/* code */
-	}
-}
-
-
-void Image::SortEigenVectors()
-{
-	cout << "Rows: " << eigenVectors.rows() << endl;
-	for (int i = 0; i < eigenVectors.cols(); ++i)
-	{
-		complex<double> doubleBarOperation=0.0; //sqrt(x1^2 + .... + xn^2)
-		for (int j = 0; j < eigenVectors.rows(); ++j)
-		{
-			doubleBarOperation += (eigenVectors(j,i)*eigenVectors(j,i));
-			cout << doubleBarOperation << " ";
-		}
-		complex<double> value = sqrt(doubleBarOperation);
-		cout << endl << "Col value: " << i << endl;
-		cout << value << endl;
-		if(sortedEigenVectors.size() == 0)
-		{
-			VectorXd column(eigenVectors.rows());
-		}
-		else
-		{
-
-		}
-		for (int i = 0; i < sortedEigenVectors.size(); ++i)
-		{
-			/* code */
-		}
 	}
 }
 
