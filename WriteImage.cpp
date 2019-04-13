@@ -17,7 +17,7 @@ void writeImage(char fname[], ImageType& image)
 
     image.getImageInfo(N, M, Q);
 
-    charImage = (unsigned char *) new unsigned char [3*M*N];
+    charImage = (unsigned char *) new unsigned char [M*N];
 
     int val;
 
@@ -25,8 +25,8 @@ void writeImage(char fname[], ImageType& image)
     {
         for(j=0; j<M; j++)
         {
-            image.getPixelVal(i, j/3, val);
-            charImage[i+j]=(unsigned char)val;
+            image.getPixelVal(i, j, val);
+            charImage[i*M+j]=(unsigned char)val;
             //charImage[i*3*M+j+1]=(unsigned char)val.g;
             //charImage[i*3*M+j+2]=(unsigned char)val.b;
         }
@@ -40,9 +40,9 @@ void writeImage(char fname[], ImageType& image)
         exit(1);
     }
 
-    ofp << "P5" << " " << M << " " << N << " " << 255;
+    ofp << "P5" << " " << M << " " << N << " " << 255 << endl;
 
-    ofp.write( reinterpret_cast<char *>(charImage), (3*M*N)*sizeof(unsigned char));
+    ofp.write( reinterpret_cast<char *>(charImage), (M*N)*sizeof(unsigned char));
 
     if (ofp.fail())
     {
