@@ -181,7 +181,7 @@ vector<Image> PopulateImages(string directory)
 					fout.close();
 
 					//THIS DOESN'T WORK CORRECTLY
-					//writeImage((char*)"output", image);
+					writeImage((char*)"output.pgm", image);
 				}
 			}
 			closedir (dir);
