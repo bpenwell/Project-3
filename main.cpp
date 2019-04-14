@@ -68,11 +68,25 @@ int main()
 
 	vector<Image> ImageVector;
 	//testImage.ExtractEigenVectors(g, DIM, DIM);
-
-	if(1)
+	string inputString;
+	do
 	{
-		ImageVector = PopulateImages(trainingDataset, 48, 60);
-	}
+		cout << endl
+		     << "+=======================================================+\n"
+			 << "|Select  1 to generate average face                     |\n"
+		     << "|Select -1 to exit                                      |\n"
+		     << "+=======================================================+\n"
+		     << endl
+		     << "Choice: ";
+
+		cin >> inputString;
+		if(inputString == "1")
+		{
+			ImageVector = PopulateImages(trainingDataset, 48, 60);
+		}
+
+		cout << endl;
+	} while(inputString != "-1");
 }
 
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
