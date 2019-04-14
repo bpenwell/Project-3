@@ -23,32 +23,38 @@ const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
 const int DIM = 3;
+const int IMG_W = 48, IMG_H = 60;
+const int NUM_SAMPLES = 1204;
 
 class Image
 {
 public:
 	void ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2);
 
+	// Setters
 	void SetIdentifier(int input) { identifier = input; };
 	void SetDateTaken(int input) { dateTaken = input; };
 	void SetDataset(string input) { dataset = input; };
 	void SetWearingGlasses(bool input) { wearingGlasses = input; };
 	void SetFileName(string input) { fileName = input; };
+	void setFaceVector(VectorXd vector) { faceVector = vector; };
+
+	// Getters
 	int GetIdentifier() { return identifier; };
 	int GetDateTaken() { return dateTaken; };
 	string GetFileName() { return fileName; };
 	string GetDataset() { return dataset; };
 	bool GetWearingGlasses() { return wearingGlasses; };
-
+	VectorXd getFaceVector() { return faceVector; };
 
 private:
-
 	string fileName;
 	int identifier; //nnnnn
 	int dateTaken; //yymmdd
 	string dataset;
 	bool wearingGlasses;
 
+	VectorXd faceVector;
 	MatrixXcd eigenVectors;
 	MatrixXcd eigenValues;
 };
@@ -58,6 +64,7 @@ void readImage(char[], ImageType&);
 void writeImage(char[], ImageType&);
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2);
 vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight);
+vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHeight);
 
 int main()
 {
@@ -74,6 +81,7 @@ int main()
 	{
 		cout << endl
 		     << "+=======================================================+\n"
+			 << "|Select  0 to obtain face images                        |\n"
 			 << "|Select  1 to generate average face                     |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
@@ -81,13 +89,19 @@ int main()
 		     << "Choice: ";
 
 		cin >> inputString;
-		if(inputString == "1")
+		if(inputString == "0")
+		{
+			ImageVector = obtainTrainingFaces(trainingDataset, IMG_W, IMG_H);
+		}
+		else if(inputString == "1")
 		{
 			ImageVector = PopulateImages(trainingDataset, 48, 60);
 		}
 
 		cout << endl;
 	} while(inputString != "-1");
+
+
 }
 
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
@@ -96,7 +110,7 @@ void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
 	{
 		for (int j = 0; j < dimension2; ++j)
 		{
-			cout << m(i,j) << " ";
+			cout << m(i, j) << " ";
 		}
 		cout << endl;
 	}
@@ -164,7 +178,7 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 			
 			string currentFile = directory + '/' + ent->d_name;
 
-			if(fileName != "." && fileName != "..")
+			if (fileName != "." && fileName != "..")
 			{					
 				readImageHeader((char*) currentFile.c_str(), N, M, Q, type);
 
@@ -174,9 +188,9 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 
  				MatrixXd imageMatrix(N, M);
 				
-				for (k=0; k<N; k++)
+				for (k = 0; k < N; k++)
 				{
-					for(j=0; j<M; j++)
+					for (j = 0; j < M; j++)
 					{
 			            image.getPixelVal(k, j, val);
 			            imageMatrix(k, j) = val;
@@ -201,8 +215,6 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 		ImageType image(imageHeight, imageWidth, Q);
 		
 		fout.open(avgFaceText.c_str(), std::ofstream::trunc);
-		
-		cout << "Number of samples: " << numFiles << endl;
 
 		for (int i = 0; i < imageHeight; ++i)
 		{
@@ -233,6 +245,104 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 	}
 }
 
+vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHeight)
+{
+	vector<Image> returnVector;
+	MatrixXd avgFaceMatrix(imageHeight, imageWidth);
+	int k, j, M, N, Q;
+ 	bool type;
+	int val;
+	DIR *dir;
+	struct dirent *ent;
+
+	cout << "Obtaining training faces..." << endl;
+
+	if ((dir = opendir(directory.c_str())) != NULL) 
+	{
+		while ((ent = readdir(dir)) != NULL) 
+		{
+			string temp, fileName = ent->d_name;
+			int imageID, imageDate, i;
+			string imageDataset;
+			bool imageGlasses;
+			
+			for (i = 0; i < ID_LENGTH; ++i)
+			{
+			    temp += fileName[i];
+			}
+			imageID = atoi(temp.c_str());
+			i++;
+
+			temp = "";
+			for (; i < (ID_LENGTH + DATE_LENGTH + 1); ++i)
+			{
+				temp += fileName[i];
+			}
+			imageDate = atoi(temp.c_str());
+			i++;
+
+			temp = "";
+			for (; i < (ID_LENGTH + DATE_LENGTH + SET_LENGTH + 2); ++i)
+			{
+				temp += fileName[i];
+			}
+			imageDataset = temp;
+
+			if(fileName[i] == '.')
+			{
+				imageGlasses = false;
+			}
+			else
+			{
+				imageGlasses = true;
+			}
+
+			Image currentImage;
+			currentImage.SetFileName(ent->d_name);
+			currentImage.SetIdentifier(imageID);
+			currentImage.SetDateTaken(imageDate);
+			currentImage.SetWearingGlasses(imageGlasses);		
+			
+			string currentFile = directory + '/' + ent->d_name;
+
+			if (fileName != "." && fileName != "..")
+			{
+				readImageHeader((char*) currentFile.c_str(), N, M, Q, type);
+
+				// allocate memory for the image array
+				ImageType tempImage(N, M, Q);
+
+ 				readImage((char*) currentFile.c_str(), tempImage);
+
+ 				VectorXd imageVector(N * M);
+				
+				for (k = 0; k < N; k++)
+				{
+					for (j = 0; j < M; j++)
+					{
+			            tempImage.getPixelVal(k, j, val);
+			            imageVector(k * M + j) = val;
+					}
+				}
+
+				currentImage.setFaceVector(imageVector);
+
+				returnVector.push_back(currentImage);
+			}
+		}
+
+		closedir(dir);
+
+		cout << "Finished obtaining training faces." << endl;
+	} 
+	else 
+	{
+	 	cout << "Error: Could not open directory " << directory << endl;
+	}
+
+	return returnVector;
+}
+
 void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
 {
 	MatrixXd m_tm = m.transpose() * m;
@@ -243,8 +353,8 @@ void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
 	EigenSolver<MatrixXd> EigenSolver;
 	EigenSolver.compute(m_tm, true); //Initializes eigensolver with something to de-compose
 	eigenVectors = EigenSolver.eigenvectors();
-	cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
+	// cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
 
 	eigenValues = EigenSolver.eigenvalues();
-	cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
+	// cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
 }
