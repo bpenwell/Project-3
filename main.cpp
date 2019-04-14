@@ -191,6 +191,8 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 
 			numFiles++;
 		}
+		
+		numFiles -= 2; // subtract 2 to correct count due to '.' and '..' being counted
 
 		string avgFaceText = "avgFace.txt", avgFaceImage = "avgFaceImage.pgm";
 
