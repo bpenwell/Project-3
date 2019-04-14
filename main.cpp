@@ -61,11 +61,11 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight);
 
 int main()
 {
-	MatrixXd g(DIM, DIM);
+	// MatrixXd g(DIM, DIM);
 	string trainingDataset = "Faces_FA_FB/fa_H";
 
 	// g << 1, 0, 0, 2, 1, 1, 0, 0, 1;
-	//printMatrix(g, DIM, DIM);
+	// PrintMatrix(g, DIM, DIM);
 
 	vector<Image> ImageVector;
 	//testImage.ExtractEigenVectors(g, DIM, DIM);
@@ -113,9 +113,10 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 	DIR *dir;
 	struct dirent *ent;
 
+	cout << "Populating images..." << endl;
+
 	if ((dir = opendir (directory.c_str())) != NULL) 
 	{
-	  /* print all the files and directories within directory */
 		while ((ent = readdir (dir)) != NULL) 
 		{
 			string temp, fileName = ent->d_name;
@@ -163,9 +164,6 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 			
 			string currentFile = directory + '/' + ent->d_name;
 
-			cout << "ent->d_name: " << ent->d_name << endl;
-			cout << "currentFile: " << currentFile << endl;
-
 			if(fileName != "." && fileName != "..")
 			{					
 				readImageHeader((char*) currentFile.c_str(), N, M, Q, type);
@@ -174,7 +172,7 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 				ImageType image(N, M, Q);
  				readImage((char*) currentFile.c_str(), image);
 
- 				MatrixXd imageMatrix(N,M);
+ 				MatrixXd imageMatrix(N, M);
 				
 				for (k=0; k<N; k++)
 				{
@@ -222,6 +220,8 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 
 		writeImage((char*)avgFaceImage.c_str(), image);
 
+		cout << "Finished populating images." << endl;
+
 		return returnVector;
 	} 
 	else 
@@ -233,7 +233,7 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 
 void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
 {
-	MatrixXd m_tm = m.transpose()*m;
+	MatrixXd m_tm = m.transpose() * m;
 
 	//cout << "m.transpose*m:" << endl;
 	//PrintMatrix(m_tm, m_tm.rows(), m_tm.cols());
@@ -241,8 +241,8 @@ void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
 	EigenSolver<MatrixXd> EigenSolver;
 	EigenSolver.compute(m_tm, true); //Initializes eigensolver with something to de-compose
 	eigenVectors = EigenSolver.eigenvectors();
-	//cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
+	cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
 
 	eigenValues = EigenSolver.eigenvalues();
-	//cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
+	cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
 }
