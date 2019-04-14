@@ -9,6 +9,7 @@
 #include "eigen3/Eigen/Eigenvalues" // used to decompose matricies
 #include "image.h"
 
+using Eigen::VectorXi;
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
 using Eigen::MatrixXcd;
@@ -37,7 +38,7 @@ public:
 	void SetDataset(string input) { dataset = input; };
 	void SetWearingGlasses(bool input) { wearingGlasses = input; };
 	void SetFileName(string input) { fileName = input; };
-	void setFaceVector(VectorXd vector) { faceVector = vector; };
+	void setFaceVector(VectorXi vector) { faceVector = vector; };
 
 	// Getters
 	int GetIdentifier() { return identifier; };
@@ -45,7 +46,7 @@ public:
 	string GetFileName() { return fileName; };
 	string GetDataset() { return dataset; };
 	bool GetWearingGlasses() { return wearingGlasses; };
-	VectorXd getFaceVector() { return faceVector; };
+	VectorXi getFaceVector() const { return faceVector; };
 
 private:
 	string fileName;
@@ -54,7 +55,7 @@ private:
 	string dataset;
 	bool wearingGlasses;
 
-	VectorXd faceVector;
+	VectorXi faceVector;
 	MatrixXcd eigenVectors;
 	MatrixXcd eigenValues;
 };
@@ -65,9 +66,11 @@ void writeImage(char[], ImageType&);
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2);
 vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight);
 vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHeight);
+VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 
 int main()
 {
+	VectorXi avgFaceVector;
 	// MatrixXd g(DIM, DIM);
 	string trainingDataset = "Faces_FA_FB/fa_H";
 
@@ -81,8 +84,9 @@ int main()
 	{
 		cout << endl
 		     << "+=======================================================+\n"
-			 << "|Select  0 to obtain face images                        |\n"
+			 << "|Select  0 to obtain training faces                     |\n"
 			 << "|Select  1 to generate average face                     |\n"
+			 << "|Select  2 to compute average face vector               |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
@@ -97,11 +101,24 @@ int main()
 		{
 			ImageVector = PopulateImages(trainingDataset, 48, 60);
 		}
+		else if(inputString == "2")
+		{
+			avgFaceVector = compAvgFaceVec(ImageVector);
+			ImageType avgFaceImg(IMG_H, IMG_W, 255);
+
+			for (int i = 0; i < IMG_H; i++)
+			{
+				for (int j = 0; j < IMG_W; j++)
+				{
+					int val = avgFaceVector(i * IMG_W + j);
+					avgFaceImg.setPixelVal(i, j, val);
+					writeImage((char*) "myAvgFaceImg.pgm", avgFaceImg);
+				}
+			}
+		}
 
 		cout << endl;
 	} while(inputString != "-1");
-
-
 }
 
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
@@ -314,7 +331,7 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 
  				readImage((char*) currentFile.c_str(), tempImage);
 
- 				VectorXd imageVector(N * M);
+ 				VectorXi imageVector(N * M);
 				
 				for (k = 0; k < N; k++)
 				{
@@ -341,6 +358,20 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 	}
 
 	return returnVector;
+}
+
+VectorXi compAvgFaceVec(const vector<Image> &imageVector)
+{
+	VectorXi result = VectorXi::Zero(IMG_H * IMG_W);
+
+	for (int i = 0; i < NUM_SAMPLES; i++)
+	{
+		result += imageVector[i].getFaceVector();
+	}
+
+	result /= NUM_SAMPLES;
+
+	return result;
 }
 
 void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
