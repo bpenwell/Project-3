@@ -1,8 +1,8 @@
 *.pgm
 *.ppm
+*.txt
 main
 output
-output.txt
 
 # Prerequisites
 *.d
