@@ -6,7 +6,6 @@
 using namespace std;
 
 #include "image.h"
-#include "rgb.h"
 
 void writeImage(char fname[], ImageType& image)
 {
@@ -27,8 +26,6 @@ void writeImage(char fname[], ImageType& image)
         {
             image.getPixelVal(i, j, val);
             charImage[i*M+j]=(unsigned char)val;
-            //charImage[i*3*M+j+1]=(unsigned char)val.g;
-            //charImage[i*3*M+j+2]=(unsigned char)val.b;
         }
     }
 

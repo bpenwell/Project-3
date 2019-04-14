@@ -1,8 +1,6 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include "rgb.h"
-
 class ImageType
 {
 public:
@@ -12,12 +10,9 @@ public:
     void setImageInfo(int, int, int);
     void setPixelVal(int, int, int);
     void getPixelVal(int, int, int&);
-    void setPixelVal(int, int, RGB);
-    void getPixelVal(int, int, RGB&);
 private:
     int N, M, Q;
     int **pixelValue;
-    RGB **RGBpixelValue;
 };
 
 #endif
