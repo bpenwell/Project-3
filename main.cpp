@@ -55,7 +55,7 @@ void readImageHeader(char[], int&, int&, int&, bool&);
 void readImage(char[], ImageType&);
 void writeImage(char[], ImageType&);
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2);
-vector<Image> PopulateImages(string directory);
+vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight);
 const int DIM = 3;
 
 int main()
@@ -71,7 +71,7 @@ int main()
 
 	if(1)
 	{
-		ImageVector = PopulateImages(trainingDataset);
+		ImageVector = PopulateImages(trainingDataset, 48, 60);
 	}
 }
 
@@ -87,9 +87,14 @@ void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
 	}
 }
 
-vector<Image> PopulateImages(string directory)
+vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 {
 	vector<Image> returnVector;
+	MatrixXd avgFaceMatrix(imageHeight, imageWidth);
+	int numFiles=0;
+	int k, j, M, N, Q;
+ 	bool type;
+	int val;
 	DIR *dir;
 	struct dirent *ent;
 		if ((dir = opendir (directory.c_str())) != NULL) 
@@ -146,14 +151,10 @@ vector<Image> PopulateImages(string directory)
 				cout << "ent->d_name: " << ent->d_name << endl;
 				cout << "currentFile: " << currentFile << endl;
 				if(fileName != "." && fileName != "..")
-				{
-					int k, j, M, N, Q;
-				 	bool type;
-					int val;
-					
+				{					
 					readImageHeader((char*) currentFile.c_str(), N, M, Q, type);
 
-					 // allocate memory for the image array
+					// allocate memory for the image array
 					ImageType image(N, M, Q);
 	 				readImage((char*) currentFile.c_str(), image);
 
@@ -165,25 +166,37 @@ vector<Image> PopulateImages(string directory)
 			            imageMatrix(k,j) = val;
 						//cout << val << endl;
 					}
-					//newImage.ExtractEigenVectors(imageMatrix, N, M);
-
+	 				avgFaceMatrix += imageMatrix;
+					newImage.ExtractEigenVectors(imageMatrix, N, M);
+					returnVector.push_back(newImage);
 					//prints pixel values to output file. I am using this to validate the image has been correctly extracted
-					ofstream fout;
-					fout.open("output.txt", std::ofstream::trunc);
-					for (int i = 0; i < N; ++i)
-					{
-						for (int j = 0; j < M; ++j)
-						{
-							fout << imageMatrix(i,j) << " ";
-						}
-						fout << endl;
-					}
-					fout.close();
 
-					//THIS DOESN'T WORK CORRECTLY
-					writeImage((char*)"output.pgm", image);
 				}
+				numFiles++;
 			}
+			
+			string avgFaceText = "avgFace.txt", avgFaceImage = "avgFaceImage.pgm";
+
+			ofstream fout;
+			ImageType image(imageHeight, imageWidth, Q);
+			fout.open(avgFaceText.c_str(), std::ofstream::trunc);
+			//cout << "Number of samples: " << numFiles << endl;
+			int temp;
+			for (int i = 0; i < imageHeight; ++i)
+			{
+				for (int j = 0; j < imageWidth; ++j)
+				{
+					avgFaceMatrix(i,j) /= numFiles;
+					temp = (int) avgFaceMatrix(i,j);
+					image.setPixelVal(i,j, temp);
+					fout << temp << " ";
+				}
+				fout << endl;
+			}
+			fout.close();
+			
+			writeImage((char*)avgFaceImage.c_str(), image);
+
 			closedir (dir);
 
 			return returnVector;
@@ -199,14 +212,14 @@ void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
 {
 	MatrixXd m_tm = m.transpose()*m;
 
-	cout << "m.transpose*m:" << endl;
-	PrintMatrix(m_tm, m_tm.rows(), m_tm.cols());
+	//cout << "m.transpose*m:" << endl;
+	//PrintMatrix(m_tm, m_tm.rows(), m_tm.cols());
 
 	EigenSolver<MatrixXd> EigenSolver;
 	EigenSolver.compute(m_tm,true); //Initializes eigensolver with something to de-compose
 	eigenVectors = EigenSolver.eigenvectors();
-	cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
+	//cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
 
 	eigenValues = EigenSolver.eigenvalues();
-	cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
+	//cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
 }
