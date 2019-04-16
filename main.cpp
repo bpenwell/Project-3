@@ -12,6 +12,7 @@
 using Eigen::VectorXi;
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
+using Eigen::MatrixXi;
 using Eigen::MatrixXcd;
 using Eigen::EigenSolver;
 using namespace std;
@@ -32,6 +33,7 @@ class Image
 {
 public:
 	void ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2);
+	//void ExtractEigenVectors(MatrixXi m, int dimension1, int dimension2);
 
 	// Setters
 	void SetIdentifier(int input) { identifier = input; };
@@ -147,7 +149,7 @@ int main()
 			fout.close();
 
 			int s = ImageVector.size();
-			MatrixXd CovarianceMatrix(s,s);
+			MatrixXi CovarianceMatrix(s,s);
 
 			//Compute covariance matrix
 			//Ensure using A^T*A (MxM matrix)
@@ -160,11 +162,13 @@ int main()
 				{
 					if(i == 0)
 					{
-						CovarianceMatrix(i,j) = differentialImageVectorVector[i].transpose().col(j)*differentialImageVectorVector[i].row(j);
+						CovarianceMatrix(i,j) = differentialImageVectorVector[i].row(j)*differentialImageVectorVector[i].transpose().col(j);
 					}
 					else
 					{
-						CovarianceMatrix(i,j) += differentialImageVectorVector[i].transpose().col(j)*differentialImageVectorVector[i].row(j);
+						CovarianceMatrix(i,j) += differentialImageVectorVector[i].row(j)*differentialImageVectorVector[i].transpose().col(j);
+						cout << "differentialImageVectorVector[i].transpose().col(j): " << differentialImageVectorVector[i].transpose().col(j) << endl;
+						cout << "differentialImageVectorVector[i].row(j): " << differentialImageVectorVector[i].row(j) << endl;
 					}
 				}
 			}
@@ -176,8 +180,10 @@ int main()
 					CovarianceMatrix(i,j) /= s;
 				}
 			}
-
+			//ExtractEigenVectors(CovarianceMatrix, CovarianceMatrix.rows(), CovarianceMatrix.cols());
 			cout << CovarianceMatrix << endl;
+			cout << "CovarianceMatrix.rows(): " << CovarianceMatrix.rows() << endl;
+			cout << "CovarianceMatrix.cols(): " << CovarianceMatrix.cols() << endl;
 		}
 
 		cout << endl;
@@ -478,8 +484,24 @@ void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
 	EigenSolver<MatrixXd> EigenSolver;
 	EigenSolver.compute(m_tm, true); //Initializes eigensolver with something to de-compose
 	eigenVectors = EigenSolver.eigenvectors();
-	// cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
+	//cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
 
 	eigenValues = EigenSolver.eigenvalues();
 	//cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
 }
+
+/*void Image::ExtractEigenVectors(MatrixXi m, int dimension1, int dimension2)
+{
+	MatrixXi m_tm = m.transpose() * m;
+
+	//cout << "m.transpose*m:" << endl;
+	//PrintMatrix(m_tm, m_tm.rows(), m_tm.cols());
+
+	EigenSolver<MatrixXi> EigenSolver;
+	EigenSolver.compute(m_tm, true); //Initializes eigensolver with something to de-compose
+	eigenVectors = EigenSolver.eigenvectors();
+	//cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
+
+	eigenValues = EigenSolver.eigenvalues();
+	//cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
+}*/
