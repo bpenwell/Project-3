@@ -26,6 +26,7 @@ const int SET_LENGTH = 2;
 const int DIM = 3;
 const int IMG_W = 48, IMG_H = 60;
 const int NUM_SAMPLES = 1204;
+const string trainingFaces = "trainingFaces.txt", avgFaceText = "avgFace.txt", avgFaceImage = "avgFaceImage.pgm", eigenCoefficientsFile = "CoefficientsFile.txt";
 
 class Image
 {
@@ -41,12 +42,13 @@ public:
 	void setFaceVector(VectorXi vector) { faceVector = vector; };
 
 	// Getters
-	int GetIdentifier() { return identifier; };
-	int GetDateTaken() { return dateTaken; };
-	string GetFileName() { return fileName; };
-	string GetDataset() { return dataset; };
-	bool GetWearingGlasses() { return wearingGlasses; };
+	int GetIdentifier() const { return identifier; };
+	int GetDateTaken() const { return dateTaken; };
+	string GetFileName() const { return fileName; };
+	string GetDataset() const { return dataset; };
+	bool GetWearingGlasses() const { return wearingGlasses; };
 	VectorXi getFaceVector() const { return faceVector; };
+	MatrixXcd GetEigenValues() const { return eigenValues; };
 
 private:
 	string fileName;
@@ -64,6 +66,7 @@ void readImageHeader(char[], int&, int&, int&, bool&);
 void readImage(char[], ImageType&);
 void writeImage(char[], ImageType&);
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2);
+int comp_K_Threshold(MatrixXcd eigenvalues, double targetPercentInfoRetained);
 vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight);
 vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHeight);
 VectorXi compAvgFaceVec(const vector<Image> &imageVector);
@@ -74,19 +77,16 @@ int main()
 	// MatrixXd g(DIM, DIM);
 	string trainingDataset = "Faces_FA_FB/fa_H";
 
-	// g << 1, 0, 0, 2, 1, 1, 0, 0, 1;
-	// PrintMatrix(g, DIM, DIM);
-
 	vector<Image> ImageVector;
-	//testImage.ExtractEigenVectors(g, DIM, DIM);
+	vector<Image> projectedImageVector;
 	string inputString;
 	do
 	{
 		cout << endl
 		     << "+=======================================================+\n"
 			 << "|Select  0 to obtain training faces                     |\n"
-			 << "|Select  1 to generate average face                     |\n"
-			 << "|Select  2 to compute average face vector               |\n"
+			 << "|Select  1 to compute average face vector               |\n"
+			 << "|Select  2 to project the images (PCA)                  |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
@@ -96,12 +96,21 @@ int main()
 		if(inputString == "0")
 		{
 			ImageVector = obtainTrainingFaces(trainingDataset, IMG_W, IMG_H);
+			
+			VectorXi holdFace;
+			ofstream fout;
+			fout.open(trainingFaces.c_str());
+			for (uint i = 0; i < ImageVector.size(); ++i)
+			{
+				holdFace = ImageVector[i].getFaceVector();
+				for (int j = 0; j < holdFace.size(); ++j)
+				{
+					fout << holdFace[j] << " ";
+				}
+				fout << endl;
+			}
 		}
 		else if(inputString == "1")
-		{
-			ImageVector = PopulateImages(trainingDataset, 48, 60);
-		}
-		else if(inputString == "2")
 		{
 			avgFaceVector = compAvgFaceVec(ImageVector);
 			ImageType avgFaceImg(IMG_H, IMG_W, 255);
@@ -115,6 +124,60 @@ int main()
 					writeImage((char*) "myAvgFaceImg.pgm", avgFaceImg);
 				}
 			}
+		}
+		else if(inputString == "2")
+		{
+			cout << "You must have run selection 0 & 1 in order to run this." << endl;
+			cout << "Select threshold value:" << endl;
+			double threshold;
+			cin >> threshold;
+			
+			VectorXi differentialImageVector(ImageVector.size());
+			//MatrixXi diffMatrix(ImageVector.size(),ImageVector.size());
+			vector<VectorXi> differentialImageVectorVector;
+			ofstream fout;
+			fout.open(eigenCoefficientsFile.c_str());
+			for (uint i = 0; i < ImageVector.size(); ++i)
+			{
+				differentialImageVector = ImageVector[i].getFaceVector() - avgFaceVector;
+				differentialImageVectorVector.push_back(differentialImageVector);
+				//diffMatrix.col(i) = differentialImageVector;
+				fout << differentialImageVector.transpose() << endl;
+			}
+			fout.close();
+
+			int s = ImageVector.size();
+			MatrixXd CovarianceMatrix(s,s);
+
+			//Compute covariance matrix
+			//Ensure using A^T*A (MxM matrix)
+			//Not A*A^T (N^2xN^2 matrix)
+
+			//NOT RETURNING A SYMMETRIC MATRIX. Needs to be?
+			for (uint i = 0; i < s; ++i)
+			{
+				for (int j = 0; j < s; ++j)
+				{
+					if(i == 0)
+					{
+						CovarianceMatrix(i,j) = differentialImageVectorVector[i].transpose().col(j)*differentialImageVectorVector[i].row(j);
+					}
+					else
+					{
+						CovarianceMatrix(i,j) += differentialImageVectorVector[i].transpose().col(j)*differentialImageVectorVector[i].row(j);
+					}
+				}
+			}
+
+			for (int i = 0; i < s; ++i)
+			{
+				for (int j = 0; j < s; ++j)
+				{
+					CovarianceMatrix(i,j) /= s;
+				}
+			}
+
+			cout << CovarianceMatrix << endl;
 		}
 
 		cout << endl;
@@ -224,8 +287,6 @@ vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
 		}
 		
 		numFiles -= 2; // subtract 2 to correct count due to '.' and '..' being counted
-
-		string avgFaceText = "avgFace.txt", avgFaceImage = "avgFaceImage.pgm";
 
 		int temp;
 		ofstream fout;
@@ -374,6 +435,39 @@ VectorXi compAvgFaceVec(const vector<Image> &imageVector)
 	return result;
 }
 
+int comp_K_Threshold(MatrixXcd eigenvalues, double targetPercentInfoRetained)
+{
+	double fullData=0, partialData=0;
+	double temp;
+	cout << "eigenvalues (rows,cols): " << eigenvalues.rows() << " " << eigenvalues.cols() << endl;
+	for (int i = 0; i < eigenvalues.rows(); ++i)
+	{
+		for (int j = 0; j < eigenvalues.cols(); ++j)
+		{
+			fullData += eigenvalues(i,j).real();
+			//fullData += temp;
+		}
+	}
+
+	int k=0;
+	for (int i = 0; i < eigenvalues.rows(); ++i)
+	{
+		for (int j = 0; j < eigenvalues.cols(); ++j)
+		{
+			k++;
+			partialData += eigenvalues(i).real();
+			//partialData += temp;
+			//cout << (partialData/fullData) << endl;
+			if((partialData/fullData) >= targetPercentInfoRetained)
+			{
+				cout << "Threshold hit at: " << k << endl;
+				return k;
+			}
+		}
+	}
+	return -1;
+}
+
 void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
 {
 	MatrixXd m_tm = m.transpose() * m;
@@ -387,5 +481,5 @@ void Image::ExtractEigenVectors(MatrixXd m, int dimension1, int dimension2)
 	// cout << endl << "EigenVector Matrix: " << endl << eigenVectors << endl;
 
 	eigenValues = EigenSolver.eigenvalues();
-	// cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
+	//cout << endl << "EigenValues Matrix: " << endl << eigenValues << endl;
 }
