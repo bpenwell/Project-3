@@ -9,9 +9,11 @@
 #include "eigen3/Eigen/Eigenvalues" // used to decompose matricies
 #include "image.h"
 
-using Eigen::VectorXi;
 using Eigen::VectorXd;
+using Eigen::VectorXi;
 using Eigen::MatrixXd;
+using Eigen::MatrixXi;
+using Eigen::MatrixXf;
 using Eigen::MatrixXcd;
 using Eigen::EigenSolver;
 using namespace std;
@@ -24,7 +26,7 @@ const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
 const int DIM = 3;
-const int IMG_W = 48, IMG_H = 60;
+const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
 const int NUM_SAMPLES = 1204;
 
 class Image
@@ -70,38 +72,31 @@ VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 
 int main()
 {
-	VectorXi avgFaceVector;
-	// MatrixXd g(DIM, DIM);
-	string trainingDataset = "Faces_FA_FB/fa_H";
-
-	// g << 1, 0, 0, 2, 1, 1, 0, 0, 1;
-	// PrintMatrix(g, DIM, DIM);
-
+	string inputString, trainingDataset = "Faces_FA_FB/fa_H";
 	vector<Image> ImageVector;
-	//testImage.ExtractEigenVectors(g, DIM, DIM);
-	string inputString;
+	VectorXi avgFaceVector;
+	MatrixXf A(IMG_VEC_LEN, NUM_SAMPLES);
+	MatrixXf C(IMG_VEC_LEN, IMG_VEC_LEN);
+
 	do
 	{
 		cout << endl
 		     << "+=======================================================+\n"
-			 << "|Select  0 to obtain training faces                     |\n"
-			 << "|Select  1 to generate average face                     |\n"
-			 << "|Select  2 to compute average face vector               |\n"
+			 << "|Select  0 to obtain training faces (I_1...I_M)         |\n"
+			 << "|Select  1 to compute average face vector (Psi)         |\n"
+			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])        |\n"
+			 << "|Select  3 to compute covariance matrix C (1/M * AA^T)  |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
 		     << "Choice: ";
 
 		cin >> inputString;
-		if(inputString == "0")
+		if (inputString == "0")
 		{
 			ImageVector = obtainTrainingFaces(trainingDataset, IMG_W, IMG_H);
 		}
-		else if(inputString == "1")
-		{
-			ImageVector = PopulateImages(trainingDataset, 48, 60);
-		}
-		else if(inputString == "2")
+		else if (inputString == "1")
 		{
 			avgFaceVector = compAvgFaceVec(ImageVector);
 			ImageType avgFaceImg(IMG_H, IMG_W, 255);
@@ -115,6 +110,25 @@ int main()
 					writeImage((char*) "myAvgFaceImg.pgm", avgFaceImg);
 				}
 			}
+		}
+		else if (inputString == "2")
+		{
+			VectorXi phi;
+			
+			for (int j = 0; j < NUM_SAMPLES; j++)
+			{
+				phi = ImageVector[j].getFaceVector() - avgFaceVector;
+
+				for (int i = 0; i < IMG_VEC_LEN; i++)
+				{
+					A(i, j) = phi(i);
+				}
+			}
+		}
+		else if (inputString == "3")
+		{
+			C = A * A.transpose();
+			C = C * (1.0f / (float)NUM_SAMPLES);
 		}
 
 		cout << endl;
@@ -352,7 +366,7 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 
 		cout << "Finished obtaining training faces." << endl;
 	} 
-	else 
+	else
 	{
 	 	cout << "Error: Could not open directory " << directory << endl;
 	}
@@ -362,7 +376,7 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 
 VectorXi compAvgFaceVec(const vector<Image> &imageVector)
 {
-	VectorXi result = VectorXi::Zero(IMG_H * IMG_W);
+	VectorXi result = VectorXi::Zero(IMG_VEC_LEN);
 
 	for (int i = 0; i < NUM_SAMPLES; i++)
 	{
