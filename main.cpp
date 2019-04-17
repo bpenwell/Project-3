@@ -9,10 +9,13 @@
 #include "eigen3/Eigen/Eigenvalues" // used to decompose matricies
 #include "image.h"
 
-using Eigen::VectorXi;
 using Eigen::VectorXd;
+using Eigen::VectorXi;
 using Eigen::MatrixXd;
+using Eigen::MatrixXi;
+using Eigen::MatrixXf;
 using Eigen::MatrixXcd;
+using Eigen::MatrixXcf;
 using Eigen::EigenSolver;
 using namespace std;
 
@@ -24,7 +27,7 @@ const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
 const int DIM = 3;
-const int IMG_W = 48, IMG_H = 60;
+const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
 const int NUM_SAMPLES = 1204;
 
 class Image
@@ -70,38 +73,35 @@ VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 
 int main()
 {
-	VectorXi avgFaceVector;
-	// MatrixXd g(DIM, DIM);
-	string trainingDataset = "Faces_FA_FB/fa_H";
-
-	// g << 1, 0, 0, 2, 1, 1, 0, 0, 1;
-	// PrintMatrix(g, DIM, DIM);
-
+	string inputString, trainingDataset = "Faces_FA_FB/fa_H", eigenvaluesFile = "eigenValues.txt";
 	vector<Image> ImageVector;
-	//testImage.ExtractEigenVectors(g, DIM, DIM);
-	string inputString;
+	VectorXi avgFaceVector;
+	int K=0;
+	MatrixXf A(IMG_VEC_LEN, NUM_SAMPLES);
+	MatrixXf C(IMG_VEC_LEN, IMG_VEC_LEN);
+	MatrixXcf eigenVectors, eigenValues;
+
 	do
 	{
 		cout << endl
 		     << "+=======================================================+\n"
-			 << "|Select  0 to obtain training faces                     |\n"
-			 << "|Select  1 to generate average face                     |\n"
-			 << "|Select  2 to compute average face vector               |\n"
+			 << "|Select  0 to obtain training faces (I_1...I_M)         |\n"
+			 << "|Select  1 to compute average face vector (Psi)         |\n"
+			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])        |\n"
+			 << "|Select  3 to compute covariance matrix C (1/M * AA^T)  |\n"
+			 << "|Select  4 to compute the eigenvectors/values of AA^T   |\n"
+			 << "|Select  5 to project eigenvalues                       |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
 		     << "Choice: ";
 
 		cin >> inputString;
-		if(inputString == "0")
+		if (inputString == "0")
 		{
 			ImageVector = obtainTrainingFaces(trainingDataset, IMG_W, IMG_H);
 		}
-		else if(inputString == "1")
-		{
-			ImageVector = PopulateImages(trainingDataset, 48, 60);
-		}
-		else if(inputString == "2")
+		else if (inputString == "1")
 		{
 			avgFaceVector = compAvgFaceVec(ImageVector);
 			ImageType avgFaceImg(IMG_H, IMG_W, 255);
@@ -116,9 +116,80 @@ int main()
 				}
 			}
 		}
+		else if (inputString == "2")
+		{
+			VectorXi phi;
+			
+			for (int j = 0; j < NUM_SAMPLES; j++)
+			{
+				phi = ImageVector[j].getFaceVector() - avgFaceVector;
+
+				for (int i = 0; i < IMG_VEC_LEN; i++)
+				{
+					A(i, j) = phi(i);
+				}
+			}
+		}
+		else if (inputString == "3")
+		{
+			C = A * A.transpose();
+			C = C * (1.0f / (float)NUM_SAMPLES);
+
+			// cout << C(0, 0) << " " << C(0, 1) << " " << C(0, 2) << "\n"
+			// 	 << C(1, 0) << " " << C(1, 1) << " " << C(1, 2) << "\n"
+			// 	 << C(2, 0) << " " << C(2, 1) << " " << C(2, 2) << "\n";
+		}
+		else if (inputString == "4")
+		{
+			MatrixXf AT_A(NUM_SAMPLES, NUM_SAMPLES);
+			AT_A = A.transpose() * A;
+
+			EigenSolver<MatrixXf> es(AT_A);
+			cout << "Computing eigenvalues..." << endl;
+			eigenValues = es.eigenvalues();
+			cout << "Finished computing eigenvalues!" << endl;
+
+			cout << "Computing eigenvectors..." << endl;
+			//eigenVectors = es.eigenvectors();
+			cout << "Finished computing eigenvectors!" << endl;
+
+			cout << eigenValues << endl;
+
+			ofstream fout;
+			fout.open(eigenvaluesFile.c_str());
+			for (int i = 0; i < eigenValues.size(); ++i)
+			{
+				fout << eigenValues(i,0) << endl;
+			}
+			fout.close();
+		}
+		else if (inputString == "5")
+		{
+			complex<double> threshold;
+			complex<double> currentEigenValueNum=0, totalEigenValueNum=0;
+			cout << "Select threshold value(0 to 1): ";
+			cin >> threshold;
+
+			for (int i = 0; i < eigenValues.size(); ++i)
+			{
+				totalEigenValueNum += eigenValues(i,0);
+			}
+
+			for (int i = 0; i < eigenValues.size(); ++i)
+			{
+				currentEigenValueNum += eigenValues(i,0);
+				if((currentEigenValueNum/totalEigenValueNum).real() >= threshold.real())
+				{
+					cout << "Found K threshold to save " << threshold.real() << " of info @ K = " << i << endl;
+					K = i;
+					break;
+				}
+			}
+
+		}
 
 		cout << endl;
-	} while(inputString != "-1");
+	} while (inputString != "-1");
 }
 
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
@@ -352,7 +423,7 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 
 		cout << "Finished obtaining training faces." << endl;
 	} 
-	else 
+	else
 	{
 	 	cout << "Error: Could not open directory " << directory << endl;
 	}
@@ -362,7 +433,7 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 
 VectorXi compAvgFaceVec(const vector<Image> &imageVector)
 {
-	VectorXi result = VectorXi::Zero(IMG_H * IMG_W);
+	VectorXi result = VectorXi::Zero(IMG_VEC_LEN);
 
 	for (int i = 0; i < NUM_SAMPLES; i++)
 	{
