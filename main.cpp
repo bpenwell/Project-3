@@ -15,6 +15,7 @@ using Eigen::MatrixXd;
 using Eigen::MatrixXi;
 using Eigen::MatrixXf;
 using Eigen::MatrixXcd;
+using Eigen::MatrixXcf;
 using Eigen::EigenSolver;
 using namespace std;
 
@@ -86,6 +87,7 @@ int main()
 			 << "|Select  1 to compute average face vector (Psi)         |\n"
 			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])        |\n"
 			 << "|Select  3 to compute covariance matrix C (1/M * AA^T)  |\n"
+			 << "|Select  4 to compute the eigenvectors u_i of AA^T      |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
@@ -129,10 +131,24 @@ int main()
 		{
 			C = A * A.transpose();
 			C = C * (1.0f / (float)NUM_SAMPLES);
+
+			// cout << C(0, 0) << " " << C(0, 1) << " " << C(0, 2) << "\n"
+			// 	 << C(1, 0) << " " << C(1, 1) << " " << C(1, 2) << "\n"
+			// 	 << C(2, 0) << " " << C(2, 1) << " " << C(2, 2) << "\n";
+		}
+		else if (inputString == "4")
+		{
+			MatrixXcf eigenVectors, eigenValues;
+			MatrixXf AT_A(NUM_SAMPLES, NUM_SAMPLES);
+			AT_A = A.transpose() * A;
+
+			// EigenSolver<MatrixXf> es(AT_A);
+			// eigenValues = es.eigenvalues();
+			// eigenVectors = es.eigenvectors();
 		}
 
 		cout << endl;
-	} while(inputString != "-1");
+	} while (inputString != "-1");
 }
 
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
