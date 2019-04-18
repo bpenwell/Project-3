@@ -11,6 +11,8 @@
 
 using Eigen::VectorXd;
 using Eigen::VectorXi;
+using Eigen::VectorXf;
+using Eigen::VectorXcf;
 using Eigen::MatrixXd;
 using Eigen::MatrixXi;
 using Eigen::MatrixXf;
@@ -73,13 +75,17 @@ VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 
 int main()
 {
-	string inputString, trainingDataset = "Faces_FA_FB/fa_H", eigenvaluesFile = "eigenValues.txt";
+	string inputString;
+	string trainingDataset = "Faces_FA_FB/fa_H",
+		   eigenvaluesFile = "eigenValues.txt",
+		   eigenvectorsFile = "eigenVectors.txt";
 	vector<Image> ImageVector;
 	VectorXi avgFaceVector;
 	int K=0;
 	MatrixXf A(IMG_VEC_LEN, NUM_SAMPLES);
 	MatrixXf C(IMG_VEC_LEN, IMG_VEC_LEN);
-	MatrixXcf eigenVectors, eigenValues;
+	MatrixXf eigenVectors;
+	VectorXf eigenValues;
 
 	do
 	{
@@ -134,10 +140,6 @@ int main()
 		{
 			C = A * A.transpose();
 			C = C * (1.0f / (float)NUM_SAMPLES);
-
-			// cout << C(0, 0) << " " << C(0, 1) << " " << C(0, 2) << "\n"
-			// 	 << C(1, 0) << " " << C(1, 1) << " " << C(1, 2) << "\n"
-			// 	 << C(2, 0) << " " << C(2, 1) << " " << C(2, 2) << "\n";
 		}
 		else if (inputString == "4")
 		{
@@ -146,22 +148,26 @@ int main()
 
 			EigenSolver<MatrixXf> es(AT_A);
 			cout << "Computing eigenvalues..." << endl;
-			eigenValues = es.eigenvalues();
+			eigenValues = es.eigenvalues().real();
 			cout << "Finished computing eigenvalues!" << endl;
 
 			cout << "Computing eigenvectors..." << endl;
-			//eigenVectors = es.eigenvectors();
+			eigenVectors = es.eigenvectors().real();
+			eigenVectors = A * eigenVectors;
+			eigenVectors.colwise().normalize();
 			cout << "Finished computing eigenvectors!" << endl;
 
-			cout << eigenValues << endl;
-
 			ofstream fout;
+
 			fout.open(eigenvaluesFile.c_str());
-			for (int i = 0; i < eigenValues.size(); ++i)
-			{
-				fout << eigenValues(i,0) << endl;
-			}
+			fout << eigenValues;
 			fout.close();
+
+			fout.open(eigenvectorsFile.c_str());
+			fout << eigenVectors;
+			fout.close();
+
+			// cout << sqrt(((eigenVectors.col(0)).dot(eigenVectors.col(0)))) << endl;
 		}
 		else if (inputString == "5")
 		{
@@ -172,12 +178,12 @@ int main()
 
 			for (int i = 0; i < eigenValues.size(); ++i)
 			{
-				totalEigenValueNum += eigenValues(i,0);
+				totalEigenValueNum += eigenValues(i);
 			}
 
 			for (int i = 0; i < eigenValues.size(); ++i)
 			{
-				currentEigenValueNum += eigenValues(i,0);
+				currentEigenValueNum += eigenValues(i);
 				if((currentEigenValueNum/totalEigenValueNum).real() >= threshold.real())
 				{
 					cout << "Found K threshold to save " << threshold.real() << " of info @ K = " << i << endl;
