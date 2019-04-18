@@ -11,11 +11,9 @@
 
 using Eigen::VectorXd;
 using Eigen::VectorXi;
-using Eigen::VectorXf;
 using Eigen::VectorXcf;
 using Eigen::MatrixXd;
 using Eigen::MatrixXi;
-using Eigen::MatrixXf;
 using Eigen::MatrixXcd;
 using Eigen::MatrixXcf;
 using Eigen::EigenSolver;
@@ -28,9 +26,8 @@ using namespace std;
 const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
-//const int DIM = 3;
 const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
-const int NUM_SAMPLES = 1204;
+const int NUM_SAMPLES = 10; // 1204
 
 class Image
 {
@@ -76,17 +73,18 @@ VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 int main()
 {
 	string inputString;
-	string trainingDataset = "Faces_FA_FB/fa_H",
+	string trainingDataset = "Faces_FA_FB_test/fa_H",
 		   eigenvaluesFile = "eigenValues.txt",
 		   eigenvectorsFile = "eigenVectors.txt",
 		   imageCoefficientsFile = "imageCoefficients.txt";
 	vector<Image> ImageVector;
 	VectorXi avgFaceVector;
+	vector<VectorXi> phi;
 	int K=0;
-	MatrixXf A(IMG_VEC_LEN, NUM_SAMPLES);
-	MatrixXf C(IMG_VEC_LEN, IMG_VEC_LEN);
-	MatrixXf eigenVectors;
-	VectorXf eigenValues;
+	MatrixXd A(IMG_VEC_LEN, NUM_SAMPLES);
+	MatrixXd C(IMG_VEC_LEN, IMG_VEC_LEN);
+	MatrixXd eigenVectors;
+	VectorXd eigenValues;
 
 	do
 	{
@@ -124,27 +122,25 @@ int main()
 		}
 		else if (inputString == "2")
 		{
-			VectorXi phi;
-			
 			for (int j = 0; j < NUM_SAMPLES; j++)
 			{
-				phi = ImageVector[j].getFaceVector() - avgFaceVector;
+				phi.push_back(ImageVector[j].getFaceVector() - avgFaceVector);
 
 				for (int i = 0; i < IMG_VEC_LEN; i++)
 				{
-					A(i, j) = phi(i);
+					A(i, j) = phi[j](i);
 				}
 			}
 		}
 		else if (inputString == "3")
 		{
-			MatrixXf AT_A(NUM_SAMPLES, NUM_SAMPLES);
+			MatrixXd AT_A(NUM_SAMPLES, NUM_SAMPLES);
 			AT_A = A.transpose() * A;
 
-
-			EigenSolver<MatrixXf> es(AT_A);
+			EigenSolver<MatrixXd> es(AT_A);
 			cout << "Computing eigenvalues..." << endl;
 			eigenValues = es.eigenvalues().real();
+			cout << eigenvalues << endl;
 			cout << "Finished computing eigenvalues!" << endl;
 
 			cout << "Computing eigenvectors..." << endl;
@@ -183,13 +179,13 @@ int main()
 
 	  		std::cout.precision(2);
 			cout << std::fixed;
-			for (int i = 0; i < valuesVector.size(); ++i)
+			for (unsigned i = 0; i < valuesVector.size(); ++i)
 			{
 				totalEigenValueNum += valuesVector[i];
 				cout << valuesVector[i] << endl;
 			}
 
-			for (int i = 0; i < valuesVector.size(); ++i)
+			for (unsigned i = 0; i < valuesVector.size(); ++i)
 			{
 				currentEigenValueNum += valuesVector[i];
 				if((currentEigenValueNum/totalEigenValueNum) >= threshold)
