@@ -9,18 +9,11 @@
 #include "eigen3/Eigen/Eigenvalues" // used to decompose matricies
 #include "image.h"
 
-using Eigen::VectorXd;
 using Eigen::VectorXi;
-using Eigen::VectorXf;
-using Eigen::VectorXcf;
+using Eigen::VectorXd;
 using Eigen::MatrixXd;
 using Eigen::MatrixXi;
-<<<<<<< HEAD
-=======
-using Eigen::MatrixXf;
->>>>>>> master
 using Eigen::MatrixXcd;
-using Eigen::MatrixXcf;
 using Eigen::EigenSolver;
 using namespace std;
 
@@ -31,8 +24,8 @@ using namespace std;
 const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
-//const int DIM = 3;
-const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
+const int DIM = 3;
+const int IMG_W = 48, IMG_H = 60;
 const int NUM_SAMPLES = 1204;
 const string trainingFaces = "trainingFaces.txt", avgFaceText = "avgFace.txt", avgFaceImage = "avgFaceImage.pgm", eigenCoefficientsFile = "CoefficientsFile.txt";
 
@@ -82,50 +75,27 @@ VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 
 int main()
 {
-	string inputString;
-	string trainingDataset = "Faces_FA_FB/fa_H",
-		   eigenvaluesFile = "eigenValues.txt",
-		   eigenvectorsFile = "eigenVectors.txt",
-		   imageCoefficientsFile = "imageCoefficients.txt";
-	vector<Image> ImageVector;
 	VectorXi avgFaceVector;
-<<<<<<< HEAD
 	// MatrixXd g(DIM, DIM);
 	string trainingDataset = "Faces_FA_FB/fa_H";
 
 	vector<Image> ImageVector;
 	vector<Image> projectedImageVector;
 	string inputString;
-=======
-	int K=0;
-	MatrixXf A(IMG_VEC_LEN, NUM_SAMPLES);
-	MatrixXf C(IMG_VEC_LEN, IMG_VEC_LEN);
-	MatrixXf eigenVectors;
-	VectorXf eigenValues;
-
->>>>>>> master
 	do
 	{
 		cout << endl
 		     << "+=======================================================+\n"
-<<<<<<< HEAD
 			 << "|Select  0 to obtain training faces                     |\n"
 			 << "|Select  1 to compute average face vector               |\n"
 			 << "|Select  2 to project the images (PCA)                  |\n"
-=======
-			 << "|Select  0 to obtain training faces (I_1...I_M)         |\n"
-			 << "|Select  1 to compute average face vector (Psi)         |\n"
-			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])        |\n"
-			 << "|Select  3 to compute the eigenvectors/values of AA^T   |\n"
-			 << "|Select  4 to project eigenvalues                       |\n"
->>>>>>> master
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
 		     << "Choice: ";
 
 		cin >> inputString;
-		if (inputString == "0")
+		if(inputString == "0")
 		{
 			ImageVector = obtainTrainingFaces(trainingDataset, IMG_W, IMG_H);
 			
@@ -142,11 +112,7 @@ int main()
 				fout << endl;
 			}
 		}
-<<<<<<< HEAD
 		else if(inputString == "1")
-=======
-		else if (inputString == "1")
->>>>>>> master
 		{
 			avgFaceVector = compAvgFaceVec(ImageVector);
 			ImageType avgFaceImg(IMG_H, IMG_W, 255);
@@ -161,7 +127,6 @@ int main()
 				}
 			}
 		}
-<<<<<<< HEAD
 		else if(inputString == "2")
 		{
 			cout << "You must have run selection 0 & 1 in order to run this." << endl;
@@ -219,108 +184,10 @@ int main()
 			cout << CovarianceMatrix << endl;
 			cout << "CovarianceMatrix.rows(): " << CovarianceMatrix.rows() << endl;
 			cout << "CovarianceMatrix.cols(): " << CovarianceMatrix.cols() << endl;
-=======
-		else if (inputString == "2")
-		{
-			VectorXi phi;
-			
-			for (int j = 0; j < NUM_SAMPLES; j++)
-			{
-				phi = ImageVector[j].getFaceVector() - avgFaceVector;
-
-				for (int i = 0; i < IMG_VEC_LEN; i++)
-				{
-					A(i, j) = phi(i);
-				}
-			}
-		}
-		else if (inputString == "3")
-		{
-			MatrixXf AT_A(NUM_SAMPLES, NUM_SAMPLES);
-			AT_A = A.transpose() * A;
-
-
-			EigenSolver<MatrixXf> es(AT_A);
-			cout << "Computing eigenvalues..." << endl;
-			eigenValues = es.eigenvalues().real();
-			cout << "Finished computing eigenvalues!" << endl;
-
-			cout << "Computing eigenvectors..." << endl;
-			eigenVectors = es.eigenvectors().real();
-			eigenVectors = A * eigenVectors;
-			eigenVectors.colwise().normalize();
-			cout << "Finished computing eigenvectors!" << endl;
-
-			ofstream fout;
-
-			fout.open(eigenvaluesFile.c_str());
-			fout << eigenValues;
-			fout.close();
-
-			fout.open(eigenvectorsFile.c_str());
-			fout << eigenVectors;
-			fout.close();
-
-			// cout << sqrt(((eigenVectors.col(0)).dot(eigenVectors.col(0)))) << endl;
-		}
-		else if (inputString == "4")
-		{
-			double threshold,currentEigenValueNum=0, totalEigenValueNum=0;
-			cout << "Select threshold value(0 to 1): ";
-			cin >> threshold;
-			vector<double> valuesVector;
-			ifstream fin;
-
-			double fileInput;
-			fin.open(eigenvaluesFile.c_str());
-			while(!fin.eof())
-			{
-				fin >> fileInput;
-				valuesVector.push_back(fileInput);
-			}
-
-	  		std::cout.precision(2);
-			cout << std::fixed;
-			for (int i = 0; i < valuesVector.size(); ++i)
-			{
-				totalEigenValueNum += valuesVector[i];
-				cout << valuesVector[i] << endl;
-			}
-
-			for (int i = 0; i < valuesVector.size(); ++i)
-			{
-				currentEigenValueNum += valuesVector[i];
-				if((currentEigenValueNum/totalEigenValueNum) >= threshold)
-				{
-					cout << "Found K threshold to save " << threshold << " of info @ K = " << i << endl;
-					K = i;
-					break;
-				}
-			}
-
-			/*cout << "Projecting all faces into K dimensions..." << endl;
-			VectorXi phi;
-			ofstream fout;
-			fout.open(imageCoefficientsFile.c_str());
-			for (int j = 0; j < NUM_SAMPLES; j++)
-			{
-				phi = (VectorXi)ImageVector[j].getFaceVector() - avgFaceVector;
-				EigenSolver<VectorXi> es(phi);
-				cout << "Computing eigenvalues..." << endl;
-				VectorXcf imageEigenValues = es.eigenvalues().real();
-				cout << "Finished computing eigenvalues!" << endl;
-				for (int i = 0; i < K; ++i)
-				{
-					fout << imageEigenValues(i) << " ";
-				}
-				fout << endl;
-			}*/
-
->>>>>>> master
 		}
 
 		cout << endl;
-	} while (inputString != "-1");
+	} while(inputString != "-1");
 }
 
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
@@ -552,7 +419,7 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 
 		cout << "Finished obtaining training faces." << endl;
 	} 
-	else
+	else 
 	{
 	 	cout << "Error: Could not open directory " << directory << endl;
 	}
@@ -562,7 +429,7 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 
 VectorXi compAvgFaceVec(const vector<Image> &imageVector)
 {
-	VectorXi result = VectorXi::Zero(IMG_VEC_LEN);
+	VectorXi result = VectorXi::Zero(IMG_H * IMG_W);
 
 	for (int i = 0; i < NUM_SAMPLES; i++)
 	{
