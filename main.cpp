@@ -28,7 +28,7 @@ using namespace std;
 const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
-const int DIM = 3;
+//const int DIM = 3;
 const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
 const int NUM_SAMPLES = 1204;
 
@@ -78,7 +78,8 @@ int main()
 	string inputString;
 	string trainingDataset = "Faces_FA_FB/fa_H",
 		   eigenvaluesFile = "eigenValues.txt",
-		   eigenvectorsFile = "eigenVectors.txt";
+		   eigenvectorsFile = "eigenVectors.txt",
+		   imageCoefficientsFile = "imageCoefficients.txt";
 	vector<Image> ImageVector;
 	VectorXi avgFaceVector;
 	int K=0;
@@ -94,9 +95,8 @@ int main()
 			 << "|Select  0 to obtain training faces (I_1...I_M)         |\n"
 			 << "|Select  1 to compute average face vector (Psi)         |\n"
 			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])        |\n"
-			 << "|Select  3 to compute covariance matrix C (1/M * AA^T)  |\n"
-			 << "|Select  4 to compute the eigenvectors/values of AA^T   |\n"
-			 << "|Select  5 to project eigenvalues                       |\n"
+			 << "|Select  3 to compute the eigenvectors/values of AA^T   |\n"
+			 << "|Select  4 to project eigenvalues                       |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
@@ -138,13 +138,9 @@ int main()
 		}
 		else if (inputString == "3")
 		{
-			C = A * A.transpose();
-			C = C * (1.0f / (float)NUM_SAMPLES);
-		}
-		else if (inputString == "4")
-		{
 			MatrixXf AT_A(NUM_SAMPLES, NUM_SAMPLES);
 			AT_A = A.transpose() * A;
+
 
 			EigenSolver<MatrixXf> es(AT_A);
 			cout << "Computing eigenvalues..." << endl;
@@ -169,28 +165,58 @@ int main()
 
 			// cout << sqrt(((eigenVectors.col(0)).dot(eigenVectors.col(0)))) << endl;
 		}
-		else if (inputString == "5")
+		else if (inputString == "4")
 		{
-			complex<double> threshold;
-			complex<double> currentEigenValueNum=0, totalEigenValueNum=0;
+			double threshold,currentEigenValueNum=0, totalEigenValueNum=0;
 			cout << "Select threshold value(0 to 1): ";
 			cin >> threshold;
+			vector<double> valuesVector;
+			ifstream fin;
 
-			for (int i = 0; i < eigenValues.size(); ++i)
+			double fileInput;
+			fin.open(eigenvaluesFile.c_str());
+			while(!fin.eof())
 			{
-				totalEigenValueNum += eigenValues(i);
+				fin >> fileInput;
+				valuesVector.push_back(fileInput);
 			}
 
-			for (int i = 0; i < eigenValues.size(); ++i)
+	  		std::cout.precision(2);
+			cout << std::fixed;
+			for (int i = 0; i < valuesVector.size(); ++i)
 			{
-				currentEigenValueNum += eigenValues(i);
-				if((currentEigenValueNum/totalEigenValueNum).real() >= threshold.real())
+				totalEigenValueNum += valuesVector[i];
+				cout << valuesVector[i] << endl;
+			}
+
+			for (int i = 0; i < valuesVector.size(); ++i)
+			{
+				currentEigenValueNum += valuesVector[i];
+				if((currentEigenValueNum/totalEigenValueNum) >= threshold)
 				{
-					cout << "Found K threshold to save " << threshold.real() << " of info @ K = " << i << endl;
+					cout << "Found K threshold to save " << threshold << " of info @ K = " << i << endl;
 					K = i;
 					break;
 				}
 			}
+
+			/*cout << "Projecting all faces into K dimensions..." << endl;
+			VectorXi phi;
+			ofstream fout;
+			fout.open(imageCoefficientsFile.c_str());
+			for (int j = 0; j < NUM_SAMPLES; j++)
+			{
+				phi = (VectorXi)ImageVector[j].getFaceVector() - avgFaceVector;
+				EigenSolver<VectorXi> es(phi);
+				cout << "Computing eigenvalues..." << endl;
+				VectorXcf imageEigenValues = es.eigenvalues().real();
+				cout << "Finished computing eigenvalues!" << endl;
+				for (int i = 0; i < K; ++i)
+				{
+					fout << imageEigenValues(i) << " ";
+				}
+				fout << endl;
+			}*/
 
 		}
 
