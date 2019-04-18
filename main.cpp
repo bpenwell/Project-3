@@ -10,7 +10,10 @@
 #include "image.h"
 
 using Eigen::VectorXi;
+<<<<<<< HEAD
 using Eigen::VectorXd;
+=======
+>>>>>>> parent of cae8e56... Merge pull request #7 from bpenwell/adam
 using Eigen::MatrixXd;
 using Eigen::MatrixXi;
 using Eigen::MatrixXcd;
@@ -75,9 +78,19 @@ VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 
 int main()
 {
+<<<<<<< HEAD
 	VectorXi avgFaceVector;
 	// MatrixXd g(DIM, DIM);
 	string trainingDataset = "Faces_FA_FB/fa_H";
+=======
+	string inputString, trainingDataset = "Faces_FA_FB/fa_H", eigenvaluesFile = "eigenValues.txt";
+	vector<Image> ImageVector;
+	VectorXi avgFaceVector;
+	int K=0;
+	MatrixXf A(IMG_VEC_LEN, NUM_SAMPLES);
+	MatrixXf C(IMG_VEC_LEN, IMG_VEC_LEN);
+	MatrixXcf eigenVectors, eigenValues;
+>>>>>>> parent of cae8e56... Merge pull request #7 from bpenwell/adam
 
 	vector<Image> ImageVector;
 	vector<Image> projectedImageVector;
@@ -146,6 +159,7 @@ int main()
 				//diffMatrix.col(i) = differentialImageVector;
 				fout << differentialImageVector.transpose() << endl;
 			}
+<<<<<<< HEAD
 			fout.close();
 
 			int s = ImageVector.size();
@@ -154,10 +168,53 @@ int main()
 			//Compute covariance matrix
 			//Ensure using A^T*A (MxM matrix)
 			//Not A*A^T (N^2xN^2 matrix)
+=======
+		}
+		else if (inputString == "3")
+		{
+			C = A * A.transpose();
+			C = C * (1.0f / (float)NUM_SAMPLES);
+
+			// cout << C(0, 0) << " " << C(0, 1) << " " << C(0, 2) << "\n"
+			// 	 << C(1, 0) << " " << C(1, 1) << " " << C(1, 2) << "\n"
+			// 	 << C(2, 0) << " " << C(2, 1) << " " << C(2, 2) << "\n";
+		}
+		else if (inputString == "4")
+		{
+			MatrixXf AT_A(NUM_SAMPLES, NUM_SAMPLES);
+			AT_A = A.transpose() * A;
+
+			EigenSolver<MatrixXf> es(AT_A);
+			cout << "Computing eigenvalues..." << endl;
+			eigenValues = es.eigenvalues();
+			cout << "Finished computing eigenvalues!" << endl;
+
+			cout << "Computing eigenvectors..." << endl;
+			//eigenVectors = es.eigenvectors();
+			cout << "Finished computing eigenvectors!" << endl;
+
+			cout << eigenValues << endl;
+
+			ofstream fout;
+			fout.open(eigenvaluesFile.c_str());
+			for (int i = 0; i < eigenValues.size(); ++i)
+			{
+				fout << eigenValues(i,0) << endl;
+			}
+			fout.close();
+		}
+		else if (inputString == "5")
+		{
+			complex<double> threshold;
+			complex<double> currentEigenValueNum=0, totalEigenValueNum=0;
+			cout << "Select threshold value(0 to 1): ";
+			cin >> threshold;
+>>>>>>> parent of cae8e56... Merge pull request #7 from bpenwell/adam
 
 			//NOT RETURNING A SYMMETRIC MATRIX. Needs to be?
 			for (uint i = 0; i < s; ++i)
 			{
+<<<<<<< HEAD
 				for (int j = 0; j < s; ++j)
 				{
 					if(i == 0)
@@ -171,11 +228,19 @@ int main()
 						cout << "differentialImageVectorVector[i].row(j): " << differentialImageVectorVector[i].row(j) << endl;
 					}
 				}
+=======
+				totalEigenValueNum += eigenValues(i,0);
+>>>>>>> parent of cae8e56... Merge pull request #7 from bpenwell/adam
 			}
 
 			for (int i = 0; i < s; ++i)
 			{
+<<<<<<< HEAD
 				for (int j = 0; j < s; ++j)
+=======
+				currentEigenValueNum += eigenValues(i,0);
+				if((currentEigenValueNum/totalEigenValueNum).real() >= threshold.real())
+>>>>>>> parent of cae8e56... Merge pull request #7 from bpenwell/adam
 				{
 					CovarianceMatrix(i,j) /= s;
 				}
