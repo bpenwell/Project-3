@@ -11,11 +11,9 @@
 
 using Eigen::VectorXd;
 using Eigen::VectorXi;
-using Eigen::VectorXf;
 using Eigen::VectorXcf;
 using Eigen::MatrixXd;
 using Eigen::MatrixXi;
-using Eigen::MatrixXf;
 using Eigen::MatrixXcd;
 using Eigen::MatrixXcf;
 using Eigen::EigenSolver;
@@ -28,9 +26,22 @@ using namespace std;
 const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
-//const int DIM = 3;
 const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
 const int NUM_SAMPLES = 1204;
+
+struct EigenValVecPair
+{
+	double eigenValue;
+	VectorXd eigenVector;
+};
+
+struct by_eigenValue
+{ 
+    bool operator()(EigenValVecPair const &a, EigenValVecPair const &b) const 
+    { 
+        return abs(a.eigenValue) > (b.eigenValue);
+    }
+};
 
 class Image
 {
@@ -82,11 +93,13 @@ int main()
 		   imageCoefficientsFile = "imageCoefficients.txt";
 	vector<Image> ImageVector;
 	VectorXi avgFaceVector;
+	vector<VectorXi> phi;
 	int K=0;
-	MatrixXf A(IMG_VEC_LEN, NUM_SAMPLES);
-	MatrixXf C(IMG_VEC_LEN, IMG_VEC_LEN);
-	MatrixXf eigenVectors;
-	VectorXf eigenValues;
+	MatrixXd A(IMG_VEC_LEN, NUM_SAMPLES);
+	MatrixXd C(IMG_VEC_LEN, IMG_VEC_LEN);
+	MatrixXd eigenVectors;
+	VectorXd eigenValues;
+	vector<EigenValVecPair> EigenValVecPairs;
 
 	do
 	{
@@ -124,25 +137,22 @@ int main()
 		}
 		else if (inputString == "2")
 		{
-			VectorXi phi;
-			
 			for (int j = 0; j < NUM_SAMPLES; j++)
 			{
-				phi = ImageVector[j].getFaceVector() - avgFaceVector;
+				phi.push_back(ImageVector[j].getFaceVector() - avgFaceVector);
 
 				for (int i = 0; i < IMG_VEC_LEN; i++)
 				{
-					A(i, j) = phi(i);
+					A(i, j) = phi[j](i);
 				}
 			}
 		}
 		else if (inputString == "3")
 		{
-			MatrixXf AT_A(NUM_SAMPLES, NUM_SAMPLES);
+			MatrixXd AT_A(NUM_SAMPLES, NUM_SAMPLES);
 			AT_A = A.transpose() * A;
 
-
-			EigenSolver<MatrixXf> es(AT_A);
+			EigenSolver<MatrixXd> es(AT_A);
 			cout << "Computing eigenvalues..." << endl;
 			eigenValues = es.eigenvalues().real();
 			cout << "Finished computing eigenvalues!" << endl;
@@ -153,15 +163,35 @@ int main()
 			eigenVectors.colwise().normalize();
 			cout << "Finished computing eigenvectors!" << endl;
 
-			ofstream fout;
+			for (int i = 0; i < eigenValues.rows(); i++)
+			{
+				EigenValVecPair pair;
+				pair.eigenValue = eigenValues(i);
+				pair.eigenVector = eigenVectors.col(i);
+				EigenValVecPairs.push_back(pair);
+			}
 
-			fout.open(eigenvaluesFile.c_str());
-			fout << eigenValues;
-			fout.close();
+			std::sort(EigenValVecPairs.begin(), EigenValVecPairs.end(), by_eigenValue());
 
-			fout.open(eigenvectorsFile.c_str());
-			fout << eigenVectors;
-			fout.close();
+			ofstream fout_vals, fout_vecs;
+
+			fout_vals.open(eigenvaluesFile.c_str());
+			fout_vecs.open(eigenvectorsFile.c_str());
+
+			for (unsigned i = 0; i < EigenValVecPairs.size(); i++)
+			{
+				fout_vals << EigenValVecPairs[i].eigenValue;
+				fout_vecs << EigenValVecPairs[i].eigenVector.transpose();
+
+				if (i < EigenValVecPairs.size() - 1) // if we're not on last iteration
+				{
+					fout_vals << endl;
+					fout_vecs << endl;
+				}
+			}
+
+			fout_vals.close();
+			fout_vecs.close();
 
 			// cout << sqrt(((eigenVectors.col(0)).dot(eigenVectors.col(0)))) << endl;
 		}
@@ -170,28 +200,41 @@ int main()
 			double threshold,currentEigenValueNum=0, totalEigenValueNum=0;
 			cout << "Select threshold value(0 to 1): ";
 			cin >> threshold;
-			vector<double> valuesVector;
-			ifstream fin;
+			vector<double> topEigenValues;
+			vector<VectorXd> topEigenVectors;
+			ifstream fin_vals, fin_vecs;
+			double eigenValue;
+			VectorXd eigenVector(IMG_VEC_LEN);
 
-			double fileInput;
-			fin.open(eigenvaluesFile.c_str());
-			while(!fin.eof())
+			fin_vals.open(eigenvaluesFile.c_str());
+			while(!fin_vals.eof())
 			{
-				fin >> fileInput;
-				valuesVector.push_back(fileInput);
+				fin_vals >> eigenValue;
+				topEigenValues.push_back(eigenValue);
+			}
+			fin_vals.close();
+
+			fin_vecs.open(eigenvectorsFile.c_str());
+			while(!fin_vecs.eof())
+			{
+				for (unsigned i = 0; i < topEigenValues.size(); i++)
+				{
+					fin_vecs >> eigenVector(i);
+				}
+				
+				topEigenVectors.push_back(eigenVector);
+			}
+			fin_vecs.close();
+			
+			for (unsigned i = 0; i < topEigenValues.size(); ++i)
+			{
+				totalEigenValueNum += topEigenValues[i];
+				cout << topEigenValues[i] << endl;
 			}
 
-	  		std::cout.precision(2);
-			cout << std::fixed;
-			for (int i = 0; i < valuesVector.size(); ++i)
+			for (unsigned i = 0; i < topEigenValues.size(); ++i)
 			{
-				totalEigenValueNum += valuesVector[i];
-				cout << valuesVector[i] << endl;
-			}
-
-			for (int i = 0; i < valuesVector.size(); ++i)
-			{
-				currentEigenValueNum += valuesVector[i];
+				currentEigenValueNum += topEigenValues[i];
 				if((currentEigenValueNum/totalEigenValueNum) >= threshold)
 				{
 					cout << "Found K threshold to save " << threshold << " of info @ K = " << i << endl;
@@ -199,6 +242,9 @@ int main()
 					break;
 				}
 			}
+
+			topEigenValues.erase(topEigenValues.begin() + K, topEigenValues.end());
+			topEigenVectors.erase(topEigenVectors.begin() + K, topEigenVectors.end());
 
 			/*cout << "Projecting all faces into K dimensions..." << endl;
 			VectorXi phi;
