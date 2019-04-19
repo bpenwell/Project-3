@@ -94,12 +94,16 @@ int main()
 	vector<Image> ImageVector;
 	VectorXi avgFaceVector;
 	vector<VectorXi> phi;
-	int K=0;
+	unsigned K = 0;
 	MatrixXd A(IMG_VEC_LEN, NUM_SAMPLES);
 	MatrixXd C(IMG_VEC_LEN, IMG_VEC_LEN);
-	MatrixXd eigenVectors;
+	MatrixXd eigenVectors_u, eigenVectors_v;
 	VectorXd eigenValues;
 	vector<EigenValVecPair> EigenValVecPairs;
+
+	// A << 1, 0, 0,
+	//      2, 1, 1,
+	//      0, 0, 1;
 
 	do
 	{
@@ -108,8 +112,8 @@ int main()
 			 << "|Select  0 to obtain training faces (I_1...I_M)         |\n"
 			 << "|Select  1 to compute average face vector (Psi)         |\n"
 			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])        |\n"
-			 << "|Select  3 to compute the eigenvectors/values of AA^T   |\n"
-			 << "|Select  4 to project eigenvalues                       |\n"
+			 << "|Select  3 to compute the eigenvectors/values of A^TA   |\n"
+			 << "|Select  4 to project eigenvalues (req: 0,1,2)          |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
@@ -140,7 +144,7 @@ int main()
 			for (int j = 0; j < NUM_SAMPLES; j++)
 			{
 				phi.push_back(ImageVector[j].getFaceVector() - avgFaceVector);
-
+				//cout << phi[j] << endl;
 				for (int i = 0; i < IMG_VEC_LEN; i++)
 				{
 					A(i, j) = phi[j](i);
@@ -158,16 +162,16 @@ int main()
 			cout << "Finished computing eigenvalues!" << endl;
 
 			cout << "Computing eigenvectors..." << endl;
-			eigenVectors = es.eigenvectors().real();
-			eigenVectors = A * eigenVectors;
-			eigenVectors.colwise().normalize();
+			eigenVectors_v = es.eigenvectors().real();
+			eigenVectors_u = A * eigenVectors_v;
+			eigenVectors_u.colwise().normalize();
 			cout << "Finished computing eigenvectors!" << endl;
 
 			for (int i = 0; i < eigenValues.rows(); i++)
 			{
 				EigenValVecPair pair;
 				pair.eigenValue = eigenValues(i);
-				pair.eigenVector = eigenVectors.col(i);
+				pair.eigenVector = eigenVectors_u.col(i);
 				EigenValVecPairs.push_back(pair);
 			}
 
@@ -193,7 +197,7 @@ int main()
 			fout_vals.close();
 			fout_vecs.close();
 
-			// cout << sqrt(((eigenVectors.col(0)).dot(eigenVectors.col(0)))) << endl;
+			// cout << sqrt(((eigenVectors_u.col(0)).dot(eigenVectors_u.col(0)))) << endl;
 		}
 		else if (inputString == "4")
 		{
@@ -246,6 +250,66 @@ int main()
 			topEigenValues.erase(topEigenValues.begin() + K, topEigenValues.end());
 			topEigenVectors.erase(topEigenVectors.begin() + K, topEigenVectors.end());
 
+			string omegaVectorsFile = "omegaVectors.txt";
+			ofstream fout_omega_vecs(omegaVectorsFile.c_str());
+
+			for (unsigned i = 0; i < phi.size(); i++)
+			{
+				for (unsigned j = 0; j < K; j++)
+				{
+					MatrixXd u_t = ((MatrixXd)topEigenVectors[j]).transpose();
+					MatrixXd phi_i = (phi[i]).cast<double>();
+					double w = (u_t * phi_i)(0, 0);
+					fout_omega_vecs << w;
+
+					if (j < K - 1)	// if not last element
+						fout_omega_vecs << " ";
+				}
+
+				if (i < phi.size() - 1)	// if not last element
+					fout_omega_vecs << endl;
+			}
+
+			fout_omega_vecs.close();
+
+			/*for (unsigned i = 0; i < topEigenVectors.size(); ++i)
+			{
+			}*/
+			
+			// cout << "topEigenVectors[0].transpose(): COLS->" << topEigenVectors[0].transpose().cols() << " | ROWS-> " << topEigenVectors[0].transpose().rows() << endl;
+			// cout << "phi[0]: COLS->" << phi[0].cols() << " | ROWS-> " << phi[0].rows() << endl;
+			
+			// vector<vector<double> > W;
+
+			// for (unsigned i = 0; i < phi.size(); ++i)
+			// {
+			// 	W.push_back(vector<double>());
+			// 	VectorXd temp(phi[i].rows());
+			// 	for (int j = 0; j < phi[i].size(); ++j)
+			// 	{				
+			// 		temp(j) = phi[i][j];
+			// 		//cout << temp(j) << " ";
+			// 	}
+			// 	//cout << phi[i] << endl;
+			// 	for (unsigned k = 0; k < K; ++k)
+			// 	{
+
+
+			// 		//VectorXd dp = topEigenVectors[i].transpose().dot(temp);
+			// 		W[i].push_back(topEigenVectors[k].transpose().dot(temp));
+			// 		//cout << W[i][k] << endl;
+			// 	}
+			// }
+
+			// for(unsigned i=0;i<W.size();i++)
+			// {
+			// 	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+			// 	for(unsigned j=0;j<W[i].size();j++)
+			// 	{
+			// 		cout << W[i][j] << " ";
+			// 	}
+			// 	cout << endl;
+			// }
 			/*cout << "Projecting all faces into K dimensions..." << endl;
 			VectorXi phi;
 			ofstream fout;
