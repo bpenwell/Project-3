@@ -27,7 +27,7 @@ const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
 const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
-const int NUM_SAMPLES = 10; // 1204
+const int NUM_SAMPLES = 1204;
 
 struct EigenValVecPair
 {
@@ -87,7 +87,7 @@ VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 int main()
 {
 	string inputString;
-	string trainingDataset = "Faces_FA_FB_test/fa_H",
+	string trainingDataset = "Faces_FA_FB/fa_H",
 		   eigenvaluesFile = "eigenValues.txt",
 		   eigenvectorsFile = "eigenVectors.txt",
 		   imageCoefficientsFile = "imageCoefficients.txt";
@@ -225,9 +225,6 @@ int main()
 				topEigenVectors.push_back(eigenVector);
 			}
 			fin_vecs.close();
-
-	  		//std::cout.precision(2);
-			//cout << std::fixed;
 			
 			for (unsigned i = 0; i < topEigenValues.size(); ++i)
 			{
