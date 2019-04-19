@@ -108,8 +108,8 @@ int main()
 			 << "|Select  0 to obtain training faces (I_1...I_M)         |\n"
 			 << "|Select  1 to compute average face vector (Psi)         |\n"
 			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])        |\n"
-			 << "|Select  3 to compute the eigenvectors/values of AA^T   |\n"
-			 << "|Select  4 to project eigenvalues                       |\n"
+			 << "|Select  3 to compute the eigenvectors/values of A^TA   |\n"
+			 << "|Select  4 to project eigenvalues (req: 0,1,2)          |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
@@ -140,7 +140,7 @@ int main()
 			for (int j = 0; j < NUM_SAMPLES; j++)
 			{
 				phi.push_back(ImageVector[j].getFaceVector() - avgFaceVector);
-
+				//cout << phi[j] << endl;
 				for (int i = 0; i < IMG_VEC_LEN; i++)
 				{
 					A(i, j) = phi[j](i);
@@ -246,6 +246,44 @@ int main()
 			topEigenValues.erase(topEigenValues.begin() + K, topEigenValues.end());
 			topEigenVectors.erase(topEigenVectors.begin() + K, topEigenVectors.end());
 
+			/*for (unsigned i = 0; i < topEigenVectors.size(); ++i)
+			{
+			}*/
+			
+			cout << "topEigenVectors[0].transpose(): COLS->" << topEigenVectors[0].transpose().cols() << " | ROWS-> " << topEigenVectors[0].transpose().rows() << endl;
+			cout << "phi[0]: COLS->" << phi[0].cols() << " | ROWS-> " << phi[0].rows() << endl;
+			
+			vector<vector<double> > W;
+
+			for (int i = 0; i < phi.size(); ++i)
+			{
+				W.push_back(vector<double>());
+				VectorXd temp(phi[i].rows());
+				for (int j = 0; j < phi[i].size(); ++j)
+				{				
+					temp(j) = phi[i][j];
+					//cout << temp(j) << " ";
+				}
+				//cout << phi[i] << endl;
+				for (unsigned k = 0; k < K; ++k)
+				{
+
+
+					//VectorXd dp = topEigenVectors[i].transpose().dot(temp);
+					W[i].push_back(topEigenVectors[k].transpose().dot(temp));
+					//cout << W[i][k] << endl;
+				}
+			}
+
+			for(unsigned i=0;i<W.size();i++)
+			{
+				cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+				for(unsigned j=0;j<W[i].size();j++)
+				{
+					cout << W[i][j] << " ";
+				}
+				cout << endl;
+			}
 			/*cout << "Projecting all faces into K dimensions..." << endl;
 			VectorXi phi;
 			ofstream fout;
