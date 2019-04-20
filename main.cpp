@@ -3,6 +3,7 @@
 #include <vector>
 #include <math.h>
 #include <string>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <sstream>
 #include "eigen3/Eigen/Dense"
@@ -27,7 +28,7 @@ const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
 const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
-const int NUM_SAMPLES = 1204;
+const int NUM_SAMPLES = 10;
 
 struct EigenValVecPair
 {
@@ -87,19 +88,24 @@ VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 int main()
 {
 	string inputString;
-	string trainingDataset = "Faces_FA_FB/fa_H",
+	string trainingDataset = "Faces_FA_FB_test/fa_H",
 		   eigenvaluesFile = "eigenValues.txt",
 		   eigenvectorsFile = "eigenVectors.txt",
-		   imageCoefficientsFile = "imageCoefficients.txt";
+		   imageCoefficientsFile = "imageCoefficients.txt",
+		   visualizeEigenVectorsFolder = "VisualizedVectors";
 	vector<Image> ImageVector;
 	VectorXi avgFaceVector;
 	vector<VectorXi> phi;
-	int K=0;
+	unsigned K = 0;
 	MatrixXd A(IMG_VEC_LEN, NUM_SAMPLES);
 	MatrixXd C(IMG_VEC_LEN, IMG_VEC_LEN);
-	MatrixXd eigenVectors;
+	MatrixXd eigenVectors_u, eigenVectors_v;
 	VectorXd eigenValues;
 	vector<EigenValVecPair> EigenValVecPairs;
+
+	// A << 1, 0, 0,
+	//      2, 1, 1,
+	//      0, 0, 1;
 
 	do
 	{
@@ -110,6 +116,7 @@ int main()
 			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])        |\n"
 			 << "|Select  3 to compute the eigenvectors/values of A^TA   |\n"
 			 << "|Select  4 to project eigenvalues (req: 0,1,2)          |\n"
+			 << "|Select  5 to visualize top 10 EigenVectors             |\n"
 		     << "|Select -1 to exit                                      |\n"
 		     << "+=======================================================+\n"
 		     << endl
@@ -155,19 +162,35 @@ int main()
 			EigenSolver<MatrixXd> es(AT_A);
 			cout << "Computing eigenvalues..." << endl;
 			eigenValues = es.eigenvalues().real();
+			//cout << "eigenValues: " << eigenValues.rows() << " " << eigenValues.cols() << endl;
 			cout << "Finished computing eigenvalues!" << endl;
 
 			cout << "Computing eigenvectors..." << endl;
-			eigenVectors = es.eigenvectors().real();
-			eigenVectors = A * eigenVectors;
-			eigenVectors.colwise().normalize();
+			eigenVectors_v = es.eigenvectors().real();
+			//cout << "eigenVectors_v: " << eigenVectors_v.rows() << " " << eigenVectors_v.cols() << endl;
+
+			
+
+			eigenVectors_u = A * eigenVectors_v;
+			
+			/*for (int i = 0; i < eigenVectors_u.rows(); ++i)
+			{
+				for (int j = 0; j < eigenVectors_u.cols(); ++j)
+				{
+					cout << eigenVectors_u(i,j) << " ";
+				}
+				cout << endl;
+			}*/
+
+			//cout << "eigenVectors_u: " << eigenVectors_u.rows() << " " << eigenVectors_u.cols() << endl;
+			eigenVectors_u.colwise().normalize();
 			cout << "Finished computing eigenvectors!" << endl;
 
 			for (int i = 0; i < eigenValues.rows(); i++)
 			{
 				EigenValVecPair pair;
 				pair.eigenValue = eigenValues(i);
-				pair.eigenVector = eigenVectors.col(i);
+				pair.eigenVector = eigenVectors_u.col(i);
 				EigenValVecPairs.push_back(pair);
 			}
 
@@ -193,7 +216,7 @@ int main()
 			fout_vals.close();
 			fout_vecs.close();
 
-			// cout << sqrt(((eigenVectors.col(0)).dot(eigenVectors.col(0)))) << endl;
+			// cout << sqrt(((eigenVectors_u.col(0)).dot(eigenVectors_u.col(0)))) << endl;
 		}
 		else if (inputString == "4")
 		{
@@ -229,7 +252,7 @@ int main()
 			for (unsigned i = 0; i < topEigenValues.size(); ++i)
 			{
 				totalEigenValueNum += topEigenValues[i];
-				cout << topEigenValues[i] << endl;
+				//cout << topEigenValues[i] << endl;
 			}
 
 			for (unsigned i = 0; i < topEigenValues.size(); ++i)
@@ -246,44 +269,116 @@ int main()
 			topEigenValues.erase(topEigenValues.begin() + K, topEigenValues.end());
 			topEigenVectors.erase(topEigenVectors.begin() + K, topEigenVectors.end());
 
+			for (int i = 0; i < topEigenVectors.size(); ++i)
+			{
+				for (int j = 0; j < topEigenVectors[i].size(); ++j)
+				{
+					//cout << topEigenVectors[i][j] << " ";
+				}
+				//cout << endl;
+			}
+
+			cout << "Visualizing top K EigenVectors..." << endl;
+
+			mkdir(visualizeEigenVectorsFolder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+			//Print vector images in order of importance
+
+			//cout << "topEigenVectors.size(): " << topEigenVectors.size() << endl;
+			for (unsigned int i = 0; i < topEigenVectors.size(); ++i)
+			{
+				stringstream ss;
+				ss << i;
+				string str = ss.str();
+				int Q;
+				ImageType image(IMG_W, IMG_H, Q);
+				string filePath = visualizeEigenVectorsFolder + "/" + str + ".pgm";
+				//cout << filePath << endl;
+				ofstream fout;
+				fout.open(filePath.c_str());
+				fout.close();
+
+				//cout << "topEigenVectors[i].size(): " << topEigenVectors[i].size() << endl;
+				for (int j = 0; j < IMG_H; j++)
+				{
+					for (int k = 0; k < IMG_W; k++)
+					{
+						int val = (int)(topEigenVectors[i][j*IMG_W+k]*255);
+						if(val < 0)
+						{
+							val = -val;
+						}
+						//cout << val << endl;
+						image.setPixelVal(k, j, val);
+					}
+				}
+				writeImage((char*)filePath.c_str(), image);
+			}
+
+
+
+
+
+
+			cout << "Projecting vectors into K space..." << endl;
+			string omegaVectorsFile = "omegaVectors.txt";
+			ofstream fout_omega_vecs(omegaVectorsFile.c_str());
+
+			for (unsigned i = 0; i < phi.size(); i++)
+			{
+				for (unsigned j = 0; j < K; j++)
+				{
+					MatrixXd u_t = ((MatrixXd)topEigenVectors[j]).transpose();
+					MatrixXd phi_i = (phi[i]).cast<double>();
+					double w = (u_t * phi_i)(0, 0);
+					fout_omega_vecs << w;
+
+					if (j < K - 1)	// if not last element
+						fout_omega_vecs << " ";
+				}
+
+				if (i < phi.size() - 1)	// if not last element
+					fout_omega_vecs << endl;
+			}
+
+			fout_omega_vecs.close();
 			/*for (unsigned i = 0; i < topEigenVectors.size(); ++i)
 			{
 			}*/
 			
-			cout << "topEigenVectors[0].transpose(): COLS->" << topEigenVectors[0].transpose().cols() << " | ROWS-> " << topEigenVectors[0].transpose().rows() << endl;
-			cout << "phi[0]: COLS->" << phi[0].cols() << " | ROWS-> " << phi[0].rows() << endl;
+			// cout << "topEigenVectors[0].transpose(): COLS->" << topEigenVectors[0].transpose().cols() << " | ROWS-> " << topEigenVectors[0].transpose().rows() << endl;
+			// cout << "phi[0]: COLS->" << phi[0].cols() << " | ROWS-> " << phi[0].rows() << endl;
 			
-			vector<vector<double> > W;
+			// vector<vector<double> > W;
 
-			for (int i = 0; i < phi.size(); ++i)
-			{
-				W.push_back(vector<double>());
-				VectorXd temp(phi[i].rows());
-				for (int j = 0; j < phi[i].size(); ++j)
-				{				
-					temp(j) = phi[i][j];
-					//cout << temp(j) << " ";
-				}
-				//cout << phi[i] << endl;
-				for (unsigned k = 0; k < K; ++k)
-				{
+			// for (unsigned i = 0; i < phi.size(); ++i)
+			// {
+			// 	W.push_back(vector<double>());
+			// 	VectorXd temp(phi[i].rows());
+			// 	for (int j = 0; j < phi[i].size(); ++j)
+			// 	{				
+			// 		temp(j) = phi[i][j];
+			// 		//cout << temp(j) << " ";
+			// 	}
+			// 	//cout << phi[i] << endl;
+			// 	for (unsigned k = 0; k < K; ++k)
+			// 	{
 
 
-					//VectorXd dp = topEigenVectors[i].transpose().dot(temp);
-					W[i].push_back(topEigenVectors[k].transpose().dot(temp));
-					//cout << W[i][k] << endl;
-				}
-			}
+			// 		//VectorXd dp = topEigenVectors[i].transpose().dot(temp);
+			// 		W[i].push_back(topEigenVectors[k].transpose().dot(temp));
+			// 		//cout << W[i][k] << endl;
+			// 	}
+			// }
 
-			for(unsigned i=0;i<W.size();i++)
-			{
-				cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
-				for(unsigned j=0;j<W[i].size();j++)
-				{
-					cout << W[i][j] << " ";
-				}
-				cout << endl;
-			}
+			// for(unsigned i=0;i<W.size();i++)
+			// {
+			// 	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+			// 	for(unsigned j=0;j<W[i].size();j++)
+			// 	{
+			// 		cout << W[i][j] << " ";
+			// 	}
+			// 	cout << endl;
+			// }
 			/*cout << "Projecting all faces into K dimensions..." << endl;
 			VectorXi phi;
 			ofstream fout;
@@ -301,7 +396,6 @@ int main()
 				}
 				fout << endl;
 			}*/
-
 		}
 
 		cout << endl;
