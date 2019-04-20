@@ -80,7 +80,6 @@ void readImageHeader(char[], int&, int&, int&, bool&);
 void readImage(char[], ImageType&);
 void writeImage(char[], ImageType&);
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2);
-vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight);
 vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHeight);
 VectorXi compAvgFaceVec(const vector<Image> &imageVector);
 
@@ -101,10 +100,6 @@ int main()
 	VectorXd eigenValues;
 	vector<EigenValVecPair> EigenValVecPairs;
 
-	// A << 1, 0, 0,
-	//      2, 1, 1,
-	//      0, 0, 1;
-
 	do
 	{
 		cout << endl
@@ -123,6 +118,7 @@ int main()
 		if (inputString == "0")
 		{
 			ImageVector = obtainTrainingFaces(trainingDataset, IMG_W, IMG_H);
+			cout << "ImageVector.size() = " << ImageVector.size() << endl;
 		}
 		else if (inputString == "1")
 		{
@@ -135,16 +131,17 @@ int main()
 				{
 					int val = avgFaceVector(i * IMG_W + j);
 					avgFaceImg.setPixelVal(i, j, val);
-					writeImage((char*) "myAvgFaceImg.pgm", avgFaceImg);
 				}
 			}
+
+			writeImage((char*) "myAvgFaceImg.pgm", avgFaceImg);
 		}
 		else if (inputString == "2")
 		{
 			for (int j = 0; j < NUM_SAMPLES; j++)
 			{
 				phi.push_back(ImageVector[j].getFaceVector() - avgFaceVector);
-				//cout << phi[j] << endl;
+
 				for (int i = 0; i < IMG_VEC_LEN; i++)
 				{
 					A(i, j) = phi[j](i);
@@ -196,13 +193,11 @@ int main()
 
 			fout_vals.close();
 			fout_vecs.close();
-
-			// cout << sqrt(((eigenVectors_u.col(0)).dot(eigenVectors_u.col(0)))) << endl;
 		}
 		else if (inputString == "4")
 		{
-			double threshold,currentEigenValueNum=0, totalEigenValueNum=0;
-			cout << "Select threshold value(0 to 1): ";
+			double threshold, currentEigenValueNum = 0, totalEigenValueNum = 0;
+			cout << "Select threshold value (0 to 1): ";
 			cin >> threshold;
 			vector<double> topEigenValues;
 			vector<VectorXd> topEigenVectors;
@@ -221,7 +216,7 @@ int main()
 			fin_vecs.open(eigenvectorsFile.c_str());
 			while(!fin_vecs.eof())
 			{
-				for (unsigned i = 0; i < topEigenValues.size(); i++)
+				for (unsigned i = 0; i < IMG_VEC_LEN; i++)
 				{
 					fin_vecs >> eigenVector(i);
 				}
@@ -229,11 +224,10 @@ int main()
 				topEigenVectors.push_back(eigenVector);
 			}
 			fin_vecs.close();
-			
+
 			for (unsigned i = 0; i < topEigenValues.size(); ++i)
 			{
 				totalEigenValueNum += topEigenValues[i];
-				cout << topEigenValues[i] << endl;
 			}
 
 			for (unsigned i = 0; i < topEigenValues.size(); ++i)
@@ -253,6 +247,8 @@ int main()
 			string omegaVectorsFile = "omegaVectors.txt";
 			ofstream fout_omega_vecs(omegaVectorsFile.c_str());
 
+			VectorXd phi_hat = VectorXd::Zero(IMG_VEC_LEN);
+
 			for (unsigned i = 0; i < phi.size(); i++)
 			{
 				for (unsigned j = 0; j < K; j++)
@@ -264,70 +260,34 @@ int main()
 
 					if (j < K - 1)	// if not last element
 						fout_omega_vecs << " ";
+
+					if (i == 0)
+					{
+						phi_hat += w * topEigenVectors[j];
+					}
 				}
 
 				if (i < phi.size() - 1)	// if not last element
 					fout_omega_vecs << endl;
 			}
 
-			fout_omega_vecs.close();
+			phi_hat += avgFaceVector.cast<double>();
+			VectorXi phi_hat_int = phi_hat.cast<int>();
 
-			/*for (unsigned i = 0; i < topEigenVectors.size(); ++i)
+			ImageType reconstructedFaceImg(IMG_H, IMG_W, 255);
+
+			for (int i = 0; i < IMG_H; i++)
 			{
-			}*/
-			
-			// cout << "topEigenVectors[0].transpose(): COLS->" << topEigenVectors[0].transpose().cols() << " | ROWS-> " << topEigenVectors[0].transpose().rows() << endl;
-			// cout << "phi[0]: COLS->" << phi[0].cols() << " | ROWS-> " << phi[0].rows() << endl;
-			
-			// vector<vector<double> > W;
-
-			// for (unsigned i = 0; i < phi.size(); ++i)
-			// {
-			// 	W.push_back(vector<double>());
-			// 	VectorXd temp(phi[i].rows());
-			// 	for (int j = 0; j < phi[i].size(); ++j)
-			// 	{				
-			// 		temp(j) = phi[i][j];
-			// 		//cout << temp(j) << " ";
-			// 	}
-			// 	//cout << phi[i] << endl;
-			// 	for (unsigned k = 0; k < K; ++k)
-			// 	{
-
-
-			// 		//VectorXd dp = topEigenVectors[i].transpose().dot(temp);
-			// 		W[i].push_back(topEigenVectors[k].transpose().dot(temp));
-			// 		//cout << W[i][k] << endl;
-			// 	}
-			// }
-
-			// for(unsigned i=0;i<W.size();i++)
-			// {
-			// 	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
-			// 	for(unsigned j=0;j<W[i].size();j++)
-			// 	{
-			// 		cout << W[i][j] << " ";
-			// 	}
-			// 	cout << endl;
-			// }
-			/*cout << "Projecting all faces into K dimensions..." << endl;
-			VectorXi phi;
-			ofstream fout;
-			fout.open(imageCoefficientsFile.c_str());
-			for (int j = 0; j < NUM_SAMPLES; j++)
-			{
-				phi = (VectorXi)ImageVector[j].getFaceVector() - avgFaceVector;
-				EigenSolver<VectorXi> es(phi);
-				cout << "Computing eigenvalues..." << endl;
-				VectorXcf imageEigenValues = es.eigenvalues().real();
-				cout << "Finished computing eigenvalues!" << endl;
-				for (int i = 0; i < K; ++i)
+				for (int j = 0; j < IMG_W; j++)
 				{
-					fout << imageEigenValues(i) << " ";
+					int val = phi_hat_int(i * IMG_W + j);
+					reconstructedFaceImg.setPixelVal(i, j, val);
 				}
-				fout << endl;
-			}*/
+			}
+			
+			writeImage((char*) "reconstructedFaceImg.pgm", reconstructedFaceImg);
 
+			fout_omega_vecs.close();
 		}
 
 		cout << endl;
@@ -343,135 +303,6 @@ void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
 			cout << m(i, j) << " ";
 		}
 		cout << endl;
-	}
-}
-
-vector<Image> PopulateImages(string directory, int imageWidth, int imageHeight)
-{
-	vector<Image> returnVector;
-	MatrixXd avgFaceMatrix(imageHeight, imageWidth);
-	int numFiles = 0;
-	int k, j, M, N, Q;
- 	bool type;
-	int val;
-	DIR *dir;
-	struct dirent *ent;
-
-	cout << "Populating images..." << endl;
-
-	if ((dir = opendir (directory.c_str())) != NULL) 
-	{
-		while ((ent = readdir (dir)) != NULL) 
-		{
-			string temp, fileName = ent->d_name;
-			int imageID, imageDate, i;
-			string imageDataset;
-			bool imageGlasses;
-			
-			for (i=0; i < ID_LENGTH; ++i)
-			{
-			    temp += fileName[i];
-			}
-			imageID = atoi(temp.c_str());
-			i++;
-
-			temp = "";
-			for (; i < (ID_LENGTH + DATE_LENGTH + 1); ++i)
-			{
-				temp += fileName[i];
-			}
-			imageDate = atoi(temp.c_str());
-			i++;
-
-			temp = "";
-			for (; i < (ID_LENGTH + DATE_LENGTH + SET_LENGTH + 2); ++i)
-			{
-				temp += fileName[i];
-			}
-			imageDataset = temp;
-
-			if(fileName[i] == '.')
-			{
-				imageGlasses = false;
-			}
-			else
-			{
-				imageGlasses = true;
-			}
-
-			Image newImage;
-			newImage.SetIdentifier(imageID);
-			newImage.SetDateTaken(imageDate);
-			newImage.SetFileName(ent->d_name);
-			newImage.SetDataset(imageDataset);
-			newImage.SetWearingGlasses(imageGlasses);
-			
-			string currentFile = directory + '/' + ent->d_name;
-
-			if (fileName != "." && fileName != "..")
-			{					
-				readImageHeader((char*) currentFile.c_str(), N, M, Q, type);
-
-				// allocate memory for the image array
-				ImageType image(N, M, Q);
- 				readImage((char*) currentFile.c_str(), image);
-
- 				MatrixXd imageMatrix(N, M);
-				
-				for (k = 0; k < N; k++)
-				{
-					for (j = 0; j < M; j++)
-					{
-			            image.getPixelVal(k, j, val);
-			            imageMatrix(k, j) = val;
-					}
-				}
-
- 				avgFaceMatrix += imageMatrix;
-				newImage.ExtractEigenVectors(imageMatrix, N, M);
-				returnVector.push_back(newImage);
-				//prints pixel values to output file. I am using this to validate the image has been correctly extracted
-			}
-
-			numFiles++;
-		}
-		
-		numFiles -= 2; // subtract 2 to correct count due to '.' and '..' being counted
-
-		string avgFaceText = "avgFace.txt", avgFaceImage = "avgFaceImage.pgm";
-
-		int temp;
-		ofstream fout;
-		ImageType image(imageHeight, imageWidth, Q);
-		
-		fout.open(avgFaceText.c_str(), std::ofstream::trunc);
-
-		for (int i = 0; i < imageHeight; ++i)
-		{
-			for (int j = 0; j < imageWidth; ++j)
-			{
-				avgFaceMatrix(i, j) /= numFiles;
-				temp = (int) avgFaceMatrix(i, j);
-				image.setPixelVal(i, j, temp);
-				fout << temp << " ";
-			}
-
-			fout << endl;
-		}
-
-		fout.close();
-		closedir (dir);
-
-		writeImage((char*)avgFaceImage.c_str(), image);
-
-		cout << "Finished populating images." << endl;
-
-		return returnVector;
-	} 
-	else 
-	{
-	 	/* could not open directory */
-		return returnVector;
 	}
 }
 
