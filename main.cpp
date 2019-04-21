@@ -3,6 +3,7 @@
 #include <vector>
 #include <math.h>
 #include <string>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <sstream>
 #include "eigen3/Eigen/Dense"
@@ -82,7 +83,7 @@ void writeImage(char[], ImageType&);
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2);
 vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHeight);
 VectorXi compAvgFaceVec(const vector<Image> &imageVector);
-
+void getMinMax(VectorXd,double&,double&);
 int main()
 {
 	string inputString;
@@ -103,24 +104,25 @@ int main()
 	do
 	{
 		cout << endl
-		     << "+=======================================================+\n"
-			 << "|Select  0 to obtain training faces (I_1...I_M)         |\n"
-			 << "|Select  1 to compute average face vector (Psi)         |\n"
-			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])        |\n"
-			 << "|Select  3 to compute the eigenvectors/values of A^TA   |\n"
-			 << "|Select  4 to project eigenvalues (req: 0,1,2)          |\n"
-		     << "|Select -1 to exit                                      |\n"
-		     << "+=======================================================+\n"
+		     << "+=============================================================+\n"
+			 << "|Select  0 to obtain training faces (I_1...I_M)               |\n"
+			 << "|Select  1 to compute average face vector (Psi)               |\n"
+			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])              |\n"
+			 << "|Select  3 to compute the eigenvectors/values of A^TA         |\n"
+			 << "|Select  4 to project eigenvalues (req: 0,1,2)                |\n"
+			 << "|Select  5 to visualize the 10 largest & smallesteigenvectors |\n"
+		     << "|Select -1 to exit                                            |\n"
+		     << "+=============================================================+\n"
 		     << endl
 		     << "Choice: ";
 
 		cin >> inputString;
-		if (inputString == "0")
+		if (inputString == "0") //Initialize images
 		{
 			ImageVector = obtainTrainingFaces(trainingDataset, IMG_W, IMG_H);
 			cout << "ImageVector.size() = " << ImageVector.size() << endl;
 		}
-		else if (inputString == "1")
+		else if (inputString == "1") //Generate Psi
 		{
 			avgFaceVector = compAvgFaceVec(ImageVector);
 			ImageType avgFaceImg(IMG_H, IMG_W, 255);
@@ -136,7 +138,7 @@ int main()
 
 			writeImage((char*) "myAvgFaceImg.pgm", avgFaceImg);
 		}
-		else if (inputString == "2")
+		else if (inputString == "2") // Generate Phi
 		{
 			for (int j = 0; j < NUM_SAMPLES; j++)
 			{
@@ -148,7 +150,7 @@ int main()
 				}
 			}
 		}
-		else if (inputString == "3")
+		else if (inputString == "3") //Generate eigenvalues/vectors
 		{
 			MatrixXd AT_A(NUM_SAMPLES, NUM_SAMPLES);
 			AT_A = A.transpose() * A;
@@ -194,7 +196,7 @@ int main()
 			fout_vals.close();
 			fout_vecs.close();
 		}
-		else if (inputString == "4")
+		else if (inputString == "4") // Generate Omega based off threshold
 		{
 			double threshold, currentEigenValueNum = 0, totalEigenValueNum = 0;
 			cout << "Select threshold value (0 to 1): ";
@@ -289,9 +291,132 @@ int main()
 
 			fout_omega_vecs.close();
 		}
+		else if (inputString == "5") // Generate 10 largest/smallest eigenvectors
+		{
+			vector<double> topEigenValues;
+			vector<VectorXd> topEigenVectors;
+			ifstream fin_vals, fin_vecs;
+			double eigenValue;
+			VectorXd eigenVector(IMG_VEC_LEN);
+
+			fin_vals.open(eigenvaluesFile.c_str());
+			while(!fin_vals.eof())
+			{
+				fin_vals >> eigenValue;
+				topEigenValues.push_back(eigenValue);
+			}
+			fin_vals.close();
+
+			fin_vecs.open(eigenvectorsFile.c_str());
+			while(!fin_vecs.eof())
+			{
+				for (unsigned i = 0; i < IMG_VEC_LEN; i++)
+				{
+					fin_vecs >> eigenVector(i);
+				}
+				
+				topEigenVectors.push_back(eigenVector);
+			}
+			fin_vecs.close();
+
+
+			for (int i = 0; i < 10; ++i)
+			{
+				double min,max;
+				getMinMax(topEigenVectors[i],min,max);
+				cout << "min: " << min << endl;
+				cout << "max: " << max << endl;
+				ImageType eigenFace(IMG_H, IMG_W, 255);
+				for (int j = 0; j < IMG_H; j++)
+				{
+					for (int k = 0; k < IMG_W; k++)
+					{
+						
+						double val = (topEigenVectors[i](j * IMG_W + k) - min) * (255 / (max - min));
+						val += avgFaceVector(j * IMG_W + k);
+						cout << val << endl;
+						eigenFace.setPixelVal(j, k, (int)val);
+					}
+				}
+				
+				string folder = "largestEigenFaces/";
+				cout << "folder->" << folder << endl;
+				mkdir(folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+				
+				stringstream ss;
+				ss << i;
+				string str = ss.str();
+				folder += str;
+				folder += ".pgm";
+				
+				ofstream fout;
+				fout.open(folder.c_str());
+				fout.close();
+
+				writeImage((char*) folder.c_str(), eigenFace);
+			}
+			
+			vector<VectorXd> temp = topEigenVectors;
+			temp.erase(temp.begin(), temp.end()-10);
+			for (int i = 0; i < 10; ++i)
+			{
+				double min,max;
+				getMinMax(temp[i],min,max);
+				cout << "min: " << min << endl;
+				cout << "max: " << max << endl;
+				ImageType eigenFace(IMG_H, IMG_W, 255);
+				for (int j = 0; j < IMG_H; j++)
+				{
+					for (int k = 0; k < IMG_W; k++)
+					{
+						
+						double val = (temp[i](j * IMG_W + k) - min) * (255 / (max - min));
+						val += avgFaceVector(j * IMG_W + k);
+						cout << val << endl;
+						eigenFace.setPixelVal(j, k, (int)val);
+					}
+				}
+				
+				string folder = "smallestEigenFaces/";
+				cout << "folder->" << folder << endl;
+				mkdir(folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+				
+				stringstream ss;
+				ss << i;
+				string str = ss.str();
+				folder += str;
+				folder += ".pgm";
+				
+				ofstream fout;
+				fout.open(folder.c_str());
+				fout.close();
+
+				writeImage((char*) folder.c_str(), eigenFace);
+			}
+
+		}
 
 		cout << endl;
 	} while (inputString != "-1");
+}
+
+void getMinMax(VectorXd m, double& min, double& max)
+{
+	min = 1, max = -1;
+	for (int j = 0; j < IMG_H; j++)
+	{
+		for (int k = 0; k < IMG_W; k++)
+		{
+			if(m(j * IMG_W + k) < min)
+			{
+				min = m(j * IMG_W + k);
+			}
+			if(m(j * IMG_W + k) > max)
+			{
+				max = m(j * IMG_W + k);
+			}
+		}
+	}
 }
 
 void PrintMatrix(MatrixXd m, int dimension1, int dimension2)
