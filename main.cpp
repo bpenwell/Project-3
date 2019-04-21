@@ -28,7 +28,7 @@ const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
 const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
-const int NUM_SAMPLES = 10;
+const int NUM_SAMPLES = 1204;
 
 struct EigenValVecPair
 {
@@ -37,9 +37,9 @@ struct EigenValVecPair
 };
 
 struct by_eigenValue
-{
-    bool operator()(EigenValVecPair const &a, EigenValVecPair const &b) const
-    {
+{ 
+    bool operator()(EigenValVecPair const &a, EigenValVecPair const &b) const 
+    { 
         return abs(a.eigenValue) > (b.eigenValue);
     }
 };
@@ -87,12 +87,13 @@ void getMinMax(VectorXd,double&,double&);
 int main()
 {
 	string inputString;
-	string trainingDataset = "Faces_FA_FB_test/fa_H",
+	string trainingDataset = "Faces_FA_FB/fa_H",
+		   testingDataset = "Faces_FA_FB/fb_H",
 		   eigenvaluesFile = "eigenValues.txt",
 		   eigenvectorsFile = "eigenVectors.txt",
-		   imageCoefficientsFile = "imageCoefficients.txt",
-		   visualizeEigenVectorsFolder = "VisualizedVectors";
+		   imageCoefficientsFile = "imageCoefficients.txt";
 	vector<Image> ImageVector;
+	vector<Image> TestImageVector;
 	VectorXi avgFaceVector;
 	vector<VectorXi> phi;
 	unsigned K = 0;
@@ -102,22 +103,20 @@ int main()
 	VectorXd eigenValues;
 	vector<EigenValVecPair> EigenValVecPairs;
 
-	// A << 1, 0, 0,
-	//      2, 1, 1,
-	//      0, 0, 1;
-
 	do
 	{
 		cout << endl
-		     << "+=============================================================+\n"
-			 << "|Select  0 to obtain training faces (I_1...I_M)               |\n"
-			 << "|Select  1 to compute average face vector (Psi)               |\n"
-			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])              |\n"
-			 << "|Select  3 to compute the eigenvectors/values of A^TA         |\n"
-			 << "|Select  4 to project eigenvalues (req: 0,1,2)                |\n"
-			 << "|Select  5 to visualize the 10 largest & smallesteigenvectors |\n"
-		     << "|Select -1 to exit                                            |\n"
-		     << "+=============================================================+\n"
+		     << "+==============================================================+\n"
+			 << "|Select  0 to obtain training images (I_1...I_M)               |\n"
+			 << "|Select  1 to compute average face vector (Psi)                |\n"
+			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])               |\n"
+			 << "|Select  3 to compute the eigenvectors/values of A^TA          |\n"
+			 << "|Select  4 to project eigenvalues (req: 0,1,2)                 |\n"
+			 << "|Select  5 to visualize the 10 largest & smallesteigenvectors  |\n"
+		     << "|Select  6 to recognize a face                                 |\n"
+		     << "|Select  7 to obtain testing images                            |\n"
+		     << "|Select -1 to exit                                             |\n"
+		     << "+==============================================================+\n"
 		     << endl
 		     << "Choice: ";
 
@@ -148,7 +147,7 @@ int main()
 			for (int j = 0; j < NUM_SAMPLES; j++)
 			{
 				phi.push_back(ImageVector[j].getFaceVector() - avgFaceVector);
-				//cout << phi[j] << endl;
+
 				for (int i = 0; i < IMG_VEC_LEN; i++)
 				{
 					A(i, j) = phi[j](i);
@@ -163,7 +162,6 @@ int main()
 			EigenSolver<MatrixXd> es(AT_A);
 			cout << "Computing eigenvalues..." << endl;
 			eigenValues = es.eigenvalues().real();
-			//cout << "eigenValues: " << eigenValues.rows() << " " << eigenValues.cols() << endl;
 			cout << "Finished computing eigenvalues!" << endl;
 
 			cout << "Computing eigenvectors..." << endl;
@@ -228,7 +226,7 @@ int main()
 				{
 					fin_vecs >> eigenVector(i);
 				}
-
+				
 				topEigenVectors.push_back(eigenVector);
 			}
 			fin_vecs.close();
@@ -292,7 +290,7 @@ int main()
 					reconstructedFaceImg.setPixelVal(i, j, val);
 				}
 			}
-
+			
 			writeImage((char*) "reconstructedFaceImg.pgm", reconstructedFaceImg);
 
 			fout_omega_vecs.close();
@@ -320,7 +318,7 @@ int main()
 				{
 					fin_vecs >> eigenVector(i);
 				}
-
+				
 				topEigenVectors.push_back(eigenVector);
 			}
 			fin_vecs.close();
@@ -337,31 +335,31 @@ int main()
 				{
 					for (int k = 0; k < IMG_W; k++)
 					{
-
+						
 						double val = (topEigenVectors[i](j * IMG_W + k) - min) * (255 / (max - min));
 						val += avgFaceVector(j * IMG_W + k);
 						cout << val << endl;
 						eigenFace.setPixelVal(j, k, (int)val);
 					}
 				}
-
+				
 				string folder = "largestEigenFaces/";
 				cout << "folder->" << folder << endl;
 				mkdir(folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-
+				
 				stringstream ss;
 				ss << i;
 				string str = ss.str();
 				folder += str;
 				folder += ".pgm";
-
+				
 				ofstream fout;
 				fout.open(folder.c_str());
 				fout.close();
 
 				writeImage((char*) folder.c_str(), eigenFace);
 			}
-
+			
 			vector<VectorXd> temp = topEigenVectors;
 			temp.erase(temp.begin(), temp.end()-10);
 			for (int i = 0; i < 10; ++i)
@@ -375,31 +373,215 @@ int main()
 				{
 					for (int k = 0; k < IMG_W; k++)
 					{
-
+						
 						double val = (temp[i](j * IMG_W + k) - min) * (255 / (max - min));
 						val += avgFaceVector(j * IMG_W + k);
 						cout << val << endl;
 						eigenFace.setPixelVal(j, k, (int)val);
 					}
 				}
-
+				
 				string folder = "smallestEigenFaces/";
 				cout << "folder->" << folder << endl;
 				mkdir(folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-
+				
 				stringstream ss;
 				ss << i;
 				string str = ss.str();
 				folder += str;
 				folder += ".pgm";
-
+				
 				ofstream fout;
 				fout.open(folder.c_str());
 				fout.close();
 
 				writeImage((char*) folder.c_str(), eigenFace);
 			}
+		}
+		else if (inputString == "6")
+		{
+			string fileName;
+			cout << "Input image filename you would like to check for in the database (format- nnnnn_yymmdd_xx.pgm OR nnnnn_yymmdd_xx_q.pgm):" << endl;
+			cin >> fileName;
 
+			string temp;
+			int imageID, imageDate, i, N, M, Q;
+			string imageDataset;
+			bool imageGlasses, type;
+			
+			for (i = 0; i < ID_LENGTH; ++i)
+			{
+			    temp += fileName[i];
+			}
+			imageID = atoi(temp.c_str());
+			i++;
+
+			temp = "";
+			for (; i < (ID_LENGTH + DATE_LENGTH + 1); ++i)
+			{
+				temp += fileName[i];
+			}
+			imageDate = atoi(temp.c_str());
+			i++;
+
+			temp = "";
+			for (; i < (ID_LENGTH + DATE_LENGTH + SET_LENGTH + 2); ++i)
+			{
+				temp += fileName[i];
+			}
+			imageDataset = temp;
+
+			if(fileName[i] == '.')
+			{
+				imageGlasses = false;
+			}
+			else
+			{
+				imageGlasses = true;
+			}
+
+			Image currentImage;
+			currentImage.SetFileName(fileName);
+			currentImage.SetIdentifier(imageID);
+			currentImage.SetDateTaken(imageDate);
+			currentImage.SetWearingGlasses(imageGlasses);		
+			
+			//string currentFile = directory + '/' + ent->d_name;
+			int val;
+
+			if (fileName != "." && fileName != "..")
+			{
+				cout << fileName << endl;
+				readImageHeader((char*) fileName.c_str(), N, M, Q, type);
+
+				// allocate memory for the image array
+				ImageType tempImage(N, M, Q);
+
+ 				readImage((char*) fileName.c_str(), tempImage);
+
+ 				VectorXi imageVector(N * M);
+				
+				for (int k = 0; k < N; k++)
+				{
+					for (int j = 0; j < M; j++)
+					{
+			            tempImage.getPixelVal(k, j, val);
+			            imageVector(k * M + j) = val;
+					}
+				}
+				//cout << "before...";
+				currentImage.setFaceVector(imageVector);
+				//cout << "imageVector->rows: "<< imageVector.rows() << " ImageVector->cols: "<< imageVector.cols();
+				//cout << "after!" << endl;
+
+				//returnVector.push_back(currentImage);
+			}
+			//cout << "avgFaceVector->rows: "<< avgFaceVector.rows() << " avgFaceVector->cols: "<< avgFaceVector.cols();
+			MatrixXi imagePhi = currentImage.getFaceVector() - avgFaceVector;
+			MatrixXd imagePhi_double = imagePhi.cast<double>();
+
+			//cout << "about to extract" << endl;
+			currentImage.ExtractEigenVectors(imagePhi_double, IMG_W, IMG_H);
+
+
+			vector<double> topEigenValues;
+			vector<VectorXd> topEigenVectors;
+			ifstream fin_vals, fin_vecs;
+			double eigenValue;
+			VectorXd eigenVector(IMG_VEC_LEN);
+
+			fin_vals.open(eigenvaluesFile.c_str());
+			while(!fin_vals.eof())
+			{
+				fin_vals >> eigenValue;
+				topEigenValues.push_back(eigenValue);
+			}
+			fin_vals.close();
+
+			fin_vecs.open(eigenvectorsFile.c_str());
+			while(!fin_vecs.eof())
+			{
+				for (unsigned i = 0; i < IMG_VEC_LEN; i++)
+				{
+					fin_vecs >> eigenVector(i);
+				}
+				
+				topEigenVectors.push_back(eigenVector);
+			}
+			fin_vecs.close();
+
+			string omegaVectorsFile = "omegaVectors.txt";
+			vector<VectorXd> omegaVectors;
+
+			ifstream fin_omegas;
+			fin_omegas.open(omegaVectorsFile.c_str());
+			
+			VectorXd readVector(K);
+
+			for (int i = 0; i < NUM_SAMPLES; ++i)
+			{
+
+				for (unsigned j = 0; j < K; ++j)
+				{
+					fin_omegas >> readVector(j);
+				}
+				omegaVectors.push_back(readVector);
+			}
+
+			fin_omegas.close();
+
+			VectorXd wVector(K);
+
+			VectorXd phi_hat = VectorXd::Zero(IMG_VEC_LEN);
+			for (unsigned j = 0; j < K; j++)
+			{
+				MatrixXd u_t = ((MatrixXd)topEigenVectors[j]).transpose();
+				MatrixXd phi_i = (imagePhi).cast<double>();
+				double w = (u_t * phi_i)(0, 0);
+				wVector(j) = w;
+		 		//cout << w << " ";
+		 		//fout_omega_vecs << w;
+
+				if (j < K - 1)	// if not last element
+					//fout_omega_vecs << " ";
+
+				phi_hat += w * topEigenVectors[j];
+			}
+			cout << endl;
+
+			phi_hat += avgFaceVector.cast<double>();
+			MatrixXi phi_hat_int = phi_hat.cast<int>();
+
+			//cout << wVector << endl;
+
+			cout << "calculating e_r..." << endl;
+			double e_r;
+			//Compare omegaVectors for norm. min of all those is e_r
+			for (int i = 0; i < NUM_SAMPLES; ++i)
+			{
+				double diffSum=0;
+				for (unsigned j = 0; j < K; ++j)
+				{
+					//(image w - database image w)^2
+					diffSum += (wVector(j) - omegaVectors[i](j)) * (wVector(j) - omegaVectors[i](j));
+				}
+
+				if(i==0)
+				{
+					e_r = diffSum;
+				}
+				else if(e_r > diffSum)
+				{
+					//cout << "New min-> " << e_r << endl;
+					e_r = diffSum;
+				}
+			}
+			cout << "e_r: " << e_r << endl;
+		}
+		else if (inputString == "7") //Initialize images
+		{
+			TestImageVector = obtainTrainingFaces(testingDataset, IMG_W, IMG_H);
+			cout << "ImageVector.size() = " << ImageVector.size() << endl;
 		}
 
 		cout << endl;
@@ -449,15 +631,15 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 
 	cout << "Obtaining training faces..." << endl;
 
-	if ((dir = opendir(directory.c_str())) != NULL)
+	if ((dir = opendir(directory.c_str())) != NULL) 
 	{
-		while ((ent = readdir(dir)) != NULL)
+		while ((ent = readdir(dir)) != NULL) 
 		{
 			string temp, fileName = ent->d_name;
 			int imageID, imageDate, i;
 			string imageDataset;
 			bool imageGlasses;
-
+			
 			for (i = 0; i < ID_LENGTH; ++i)
 			{
 			    temp += fileName[i];
@@ -493,8 +675,8 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 			currentImage.SetFileName(ent->d_name);
 			currentImage.SetIdentifier(imageID);
 			currentImage.SetDateTaken(imageDate);
-			currentImage.SetWearingGlasses(imageGlasses);
-
+			currentImage.SetWearingGlasses(imageGlasses);		
+			
 			string currentFile = directory + '/' + ent->d_name;
 
 			if (fileName != "." && fileName != "..")
@@ -507,7 +689,7 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
  				readImage((char*) currentFile.c_str(), tempImage);
 
  				VectorXi imageVector(N * M);
-
+				
 				for (k = 0; k < N; k++)
 				{
 					for (j = 0; j < M; j++)
@@ -526,7 +708,7 @@ vector<Image> obtainTrainingFaces(string directory, int imageWidth, int imageHei
 		closedir(dir);
 
 		cout << "Finished obtaining training faces." << endl;
-	}
+	} 
 	else
 	{
 	 	cout << "Error: Could not open directory " << directory << endl;
