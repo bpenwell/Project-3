@@ -256,6 +256,8 @@ int main()
 			string omegaVectorsFile = "omegaVectors.txt";
 			ofstream fout_omega_vecs(omegaVectorsFile.c_str());
 
+			fout_omega_vecs << K << endl;
+
 			VectorXd phi_hat = VectorXd::Zero(IMG_VEC_LEN);
 
 			for (unsigned i = 0; i < phi.size(); i++)
