@@ -472,7 +472,7 @@ int main()
 			fout_results << "N_value CorrectlyIdentified IncorrectlyIdentified Performance" << endl;
 
 			cout << "Beginning face recognition sequence (N from 0-50)..." << endl;
-			for (int N = 1; N < 51; ++N)
+			for (int N = 1; N < 2; ++N)
 			{
 				cout << "COMPUTING N=" << N << " PERFORMANCE..." << endl;
 
@@ -497,6 +497,7 @@ int main()
 
 
 					queue<int> identifierQueue;
+					queue<string> fileNameQueue;
 					queue<double> errorQueue;
 					//cout << "calculating e_r..." << endl;
 					double e_r;
@@ -515,6 +516,7 @@ int main()
 							e_r = diffSum;
 							errorQueue.push(e_r);
 							identifierQueue.push(ImageVector[i].GetIdentifier());
+							fileNameQueue.push(ImageVector[i].GetFileName());
 						}
 						else if(e_r > diffSum)
 						{
@@ -523,22 +525,29 @@ int main()
 
 							errorQueue.push(e_r);
 							identifierQueue.push(ImageVector[i].GetIdentifier());
+							fileNameQueue.push(ImageVector[i].GetFileName());
 
 							if(errorQueue.size() > N)
 							{
 								errorQueue.pop();
 								identifierQueue.pop();
+								fileNameQueue.pop();
 							}
 						}
 						//cout << "e_r: " << e_r << endl;
 					}
 
 					bool foundCorrectImage = false;
+					int lastInt;
+					string lastString;
 					while(!errorQueue.empty()) //(unsigned i = 0; i < errorQueue.size(); ++i)
 					{
 						int tempInt = identifierQueue.front();
 						identifierQueue.pop();
 						//int tempDouble = errorQueue.front();
+						string tempString = fileNameQueue.front();
+						lastString = tempString;
+						fileNameQueue.pop();
 						errorQueue.pop();
 						//cout << "QUEUE (e_r, id): " << tempDouble << " | " << tempInt << endl;
 						//cout << "identifierQueue[i]: " << tempInt << endl;
@@ -546,6 +555,8 @@ int main()
 						if(tempInt == TestImageVector[l].GetIdentifier() && !foundCorrectImage)
 						{
 							foundCorrectImage = true;
+							//cout << "TestImageVector[l].GetFileName(): " << TestImageVector[l].GetFileName() << endl;
+							//cout << "tempString: " << tempString << endl;
 							//cout << "Identified correct image!" << endl;
 						}
 					}
@@ -558,6 +569,8 @@ int main()
 					}
 					else
 					{
+						cout << "TestImageVector[l].GetIdentifier(): " << TestImageVector[l].GetIdentifier() << endl;
+						cout << "lastString: " << lastString << endl;
 						incorrectlyIdentifiedImages++;
 					}
 				}
