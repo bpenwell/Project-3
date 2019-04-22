@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <sstream>
+#include <limits>	// numeric_limits
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Eigenvalues" // used to decompose matricies
 #include "image.h"
@@ -29,7 +30,7 @@ const int ID_LENGTH = 5;
 const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
 const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
-const int NUM_SAMPLES = 1204;
+const int NUM_SAMPLES = 1119; // 1204
 const int NUM_TEST_SAMPLES = 1196;
 
 struct EigenValVecPair
@@ -89,7 +90,7 @@ void getMinMax(VectorXd,double&,double&);
 int main()
 {
 	string inputString;
-	string trainingDataset = "Faces_FA_FB/fa_H",
+	string trainingDataset = "Faces_FA_FB/fa2_H",
 		   testingDataset = "Faces_FA_FB/fb_H",
 		   eigenvaluesFile = "eigenValues.txt",
 		   eigenvectorsFile = "eigenVectors.txt",
@@ -117,7 +118,7 @@ int main()
 			 << "|Select  4 to project training eigenvalues (req: 0,1,2)        |\n"
 			 << "|Select  5 to visualize the 10 largest & smallesteigenvectors  |\n"
 		     << "|Select  6 to run facial recognition on fb_H                   |\n"
-		     << "|Select  7 to obtain testing images                            |\n"
+		     << "|Select  7 to run facial recognition on fb_H against fa2_H     |\n"
 		     << "|Select -1 to exit                                             |\n"
 		     << "+==============================================================+\n"
 		     << endl
@@ -127,7 +128,6 @@ int main()
 		if (inputString == "0") //Initialize images
 		{
 			ImageVector = obtainTrainingFaces(trainingDataset, IMG_W, IMG_H);
-			cout << "ImageVector.size() = " << ImageVector.size() << endl;
 		}
 		else if (inputString == "1") //Generate Psi
 		{
@@ -300,19 +300,9 @@ int main()
 		}
 		else if (inputString == "5") // Generate 10 largest/smallest eigenvectors
 		{
-			vector<double> topEigenValues;
 			vector<VectorXd> topEigenVectors;
-			ifstream fin_vals, fin_vecs;
-			double eigenValue;
+			ifstream fin_vecs;
 			VectorXd eigenVector(IMG_VEC_LEN);
-
-			fin_vals.open(eigenvaluesFile.c_str());
-			while(!fin_vals.eof())
-			{
-				fin_vals >> eigenValue;
-				topEigenValues.push_back(eigenValue);
-			}
-			fin_vals.close();
 
 			fin_vecs.open(eigenvectorsFile.c_str());
 			while(!fin_vecs.eof())
@@ -411,45 +401,17 @@ int main()
 				phiTesting.push_back(TestImageVector[i].getFaceVector() - avgFaceVector);
 			}
 
-			vector<double> topEigenValues;
-			vector<VectorXd> topEigenVectors;
-			ifstream fin_vals, fin_vecs;
-			double eigenValue;
-			VectorXd eigenVector(IMG_VEC_LEN);
-
-			//LOAD EIGENVALUES/VECTORS
-			fin_vals.open(eigenvaluesFile.c_str());
-			while(!fin_vals.eof())
-			{
-				fin_vals >> eigenValue;
-				topEigenValues.push_back(eigenValue);
-			}
-			fin_vals.close();
-
-			fin_vecs.open(eigenvectorsFile.c_str());
-			while(!fin_vecs.eof())
-			{
-				for (unsigned i = 0; i < IMG_VEC_LEN; i++)
-				{
-					fin_vecs >> eigenVector(i);
-				}
-				
-				topEigenVectors.push_back(eigenVector);
-			}
-			fin_vecs.close();
-			//DONE
-
 			//LOAD DATASET'S OMEGA VECTORS
-			VectorXd readVector(K);
 			vector<VectorXd> omegaVectors;
 			string omegaVectorsFile = "omegaVectors.txt";
+			ifstream fin_omegas(omegaVectorsFile.c_str());
 
-			ifstream fin_omegas;
-			fin_omegas.open(omegaVectorsFile.c_str());
+			fin_omegas >> K; // read the K value from the file
+
+			VectorXd readVector(K);
 
 			for (int i = 0; i < NUM_SAMPLES; ++i)
 			{
-
 				for (unsigned j = 0; j < K; ++j)
 				{
 					fin_omegas >> readVector(j);
@@ -459,6 +421,25 @@ int main()
 			fin_omegas.close();
 			//DONE
 
+			//LOAD TOP K EIGENVECTORS
+			vector<VectorXd> topEigenVectors;
+			ifstream fin_vecs;
+			VectorXd eigenVector(IMG_VEC_LEN);
+
+			fin_vecs.open(eigenvectorsFile.c_str());
+			unsigned k = 0;
+			while(!fin_vecs.eof() && k < K)
+			{
+				for (unsigned i = 0; i < IMG_VEC_LEN; i++)
+				{
+					fin_vecs >> eigenVector(i);
+				}
+				
+				topEigenVectors.push_back(eigenVector);
+				k++;
+			}
+			fin_vecs.close();
+			//DONE
 
 			string folder = "Recognition/";
 			//cout << "folder->" << folder << endl;
@@ -575,7 +556,149 @@ int main()
 			}
 			fout_results.close();
 		}
+		else if (inputString == "7")
+		{
+			TestImageVector = obtainTrainingFaces(testingDataset, IMG_W, IMG_H);
 
+			for (int i = 0; i < NUM_TEST_SAMPLES; ++i)
+			{
+				phiTesting.push_back(TestImageVector[i].getFaceVector() - avgFaceVector);
+			}
+
+			//LOAD DATASET'S OMEGA VECTORS
+			vector<VectorXd> omegaVectors_training, omegaVectors_testing;
+			string omegaVectorsFile = "omegaVectors.txt";
+			ifstream fin_omegas(omegaVectorsFile.c_str());
+
+			fin_omegas >> K; // read the K value from the file
+			
+			VectorXd readVector(K);
+
+			for (int i = 0; i < NUM_SAMPLES; ++i)
+			{
+				for (unsigned j = 0; j < K; ++j)
+				{
+					fin_omegas >> readVector(j);
+				}
+				omegaVectors_training.push_back(readVector);
+			}
+			fin_omegas.close();
+			//DONE
+
+			//LOAD TOP K EIGENVECTORS
+			vector<VectorXd> topEigenVectors;
+			ifstream fin_vecs;
+			VectorXd eigenVector(IMG_VEC_LEN);
+
+			fin_vecs.open(eigenvectorsFile.c_str());
+			unsigned k = 0;
+			while(!fin_vecs.eof() && k < K)
+			{
+				for (unsigned i = 0; i < IMG_VEC_LEN; i++)
+				{
+					fin_vecs >> eigenVector(i);
+				}
+				
+				topEigenVectors.push_back(eigenVector);
+				k++;
+			}
+			fin_vecs.close();
+			//DONE
+
+			//RUN RECOGNITION ON EVERY TESTING IMAGE
+			for (unsigned l = 0; l < phiTesting.size(); ++l)
+			{
+				//GENERATE TEST IMAGE'S W VECTOR
+				VectorXd wVector(K);
+				VectorXd phi_hat = VectorXd::Zero(IMG_VEC_LEN);
+
+				for (unsigned j = 0; j < K; j++)
+				{
+					MatrixXd u_t = ((MatrixXd)topEigenVectors[j]).transpose();
+					MatrixXd phi_i = (phiTesting[l]).cast<double>();
+					double w = (u_t * phi_i)(0, 0);
+					wVector(j) = w;
+				}
+
+				omegaVectors_testing.push_back(wVector);
+			}
+
+			ofstream fout_results;
+			string recognitionFile = "TP_rate_vs_FP_rate.txt";
+			fout_results.open(recognitionFile.c_str());
+
+			//HEADER OF OUTPUT FILE
+			fout_results << "FP_rate TP_rate threshold" << endl;
+
+			unsigned i = 0, threshold = 0;
+			unsigned maxThreshold = 2840000;
+			unsigned step = 40000;
+
+			while ((threshold <= maxThreshold))
+			{
+				int	numFalsePos = 0,
+					numIntruders = 0,
+					numTruePos = 0,
+					numNonIntruders = 0;
+
+				float FP_rate, TP_rate;
+
+				for (unsigned l = 0; l < omegaVectors_testing.size(); ++l)
+				{
+					double e_r = numeric_limits<double>::max();
+					int trainingImageID;
+
+					//Compare omegaVectors for norm. min of all those is e_r
+					for (int i = 0; i < NUM_SAMPLES; ++i)
+					{
+						double diffSum = 0;
+
+						for (unsigned j = 0; j < K; ++j)
+						{
+							//(image w - database image w)^2
+							diffSum += pow(omegaVectors_testing[l](j) - omegaVectors_training[i](j), 2.0);
+						}
+
+						if (diffSum < e_r)
+						{
+							e_r = diffSum;
+							trainingImageID = ImageVector[i].GetIdentifier();
+						}
+					}
+
+					bool weAccept = (e_r < threshold);
+					bool idsMatch = (trainingImageID == TestImageVector[l].GetIdentifier());
+
+					if (idsMatch)
+					{
+						numNonIntruders++;
+					}
+					else
+					{
+						numIntruders++;
+					}
+
+					if (weAccept && idsMatch)
+					{
+						numTruePos++;
+					}
+					else if (weAccept && !idsMatch)
+					{
+						numFalsePos++;
+					}
+				}
+
+				FP_rate = (float)numFalsePos / (float)numIntruders;
+				TP_rate = (float)numTruePos / (float)numNonIntruders;
+
+				fout_results << FP_rate << " " << TP_rate << " " << threshold << endl;
+
+				i++;
+				threshold += step;
+			}
+
+			fout_results.close();
+		}
 
 		cout << endl;
 	} while (inputString != "-1");
