@@ -3,6 +3,7 @@
 #include <vector>
 #include <math.h>
 #include <string>
+#include <queue>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <sstream>
@@ -29,6 +30,7 @@ const int DATE_LENGTH = 6;
 const int SET_LENGTH = 2;
 const int IMG_W = 48, IMG_H = 60, IMG_VEC_LEN = IMG_H * IMG_W;
 const int NUM_SAMPLES = 1204;
+const int NUM_TEST_SAMPLES = 1196;
 
 struct EigenValVecPair
 {
@@ -96,6 +98,7 @@ int main()
 	vector<Image> TestImageVector;
 	VectorXi avgFaceVector;
 	vector<VectorXi> phi;
+	vector<VectorXi> phiTesting;
 	unsigned K = 0;
 	MatrixXd A(IMG_VEC_LEN, NUM_SAMPLES);
 	MatrixXd C(IMG_VEC_LEN, IMG_VEC_LEN);
@@ -111,9 +114,9 @@ int main()
 			 << "|Select  1 to compute average face vector (Psi)                |\n"
 			 << "|Select  2 to compute matrix A ([Phi_i...Phi_M])               |\n"
 			 << "|Select  3 to compute the eigenvectors/values of A^TA          |\n"
-			 << "|Select  4 to project eigenvalues (req: 0,1,2)                 |\n"
+			 << "|Select  4 to project training eigenvalues (req: 0,1,2)        |\n"
 			 << "|Select  5 to visualize the 10 largest & smallesteigenvectors  |\n"
-		     << "|Select  6 to recognize a face                                 |\n"
+		     << "|Select  6 to run facial recognition on fb_H                   |\n"
 		     << "|Select  7 to obtain testing images                            |\n"
 		     << "|Select -1 to exit                                             |\n"
 		     << "+==============================================================+\n"
@@ -400,89 +403,13 @@ int main()
 		}
 		else if (inputString == "6")
 		{
-			string fileName;
-			cout << "Input image filename you would like to check for in the database (format- nnnnn_yymmdd_xx.pgm OR nnnnn_yymmdd_xx_q.pgm):" << endl;
-			cin >> fileName;
+			TestImageVector = obtainTrainingFaces(testingDataset, IMG_W, IMG_H);
 
-			string temp;
-			int imageID, imageDate, i, N, M, Q;
-			string imageDataset;
-			bool imageGlasses, type;
-			
-			for (i = 0; i < ID_LENGTH; ++i)
-			{
-			    temp += fileName[i];
-			}
-			imageID = atoi(temp.c_str());
-			i++;
-
-			temp = "";
-			for (; i < (ID_LENGTH + DATE_LENGTH + 1); ++i)
-			{
-				temp += fileName[i];
-			}
-			imageDate = atoi(temp.c_str());
-			i++;
-
-			temp = "";
-			for (; i < (ID_LENGTH + DATE_LENGTH + SET_LENGTH + 2); ++i)
-			{
-				temp += fileName[i];
-			}
-			imageDataset = temp;
-
-			if(fileName[i] == '.')
-			{
-				imageGlasses = false;
-			}
-			else
-			{
-				imageGlasses = true;
-			}
-
-			Image currentImage;
-			currentImage.SetFileName(fileName);
-			currentImage.SetIdentifier(imageID);
-			currentImage.SetDateTaken(imageDate);
-			currentImage.SetWearingGlasses(imageGlasses);		
-			
-			//string currentFile = directory + '/' + ent->d_name;
-			int val;
-
-			if (fileName != "." && fileName != "..")
-			{
-				cout << fileName << endl;
-				readImageHeader((char*) fileName.c_str(), N, M, Q, type);
-
-				// allocate memory for the image array
-				ImageType tempImage(N, M, Q);
-
- 				readImage((char*) fileName.c_str(), tempImage);
-
- 				VectorXi imageVector(N * M);
-				
-				for (int k = 0; k < N; k++)
-				{
-					for (int j = 0; j < M; j++)
-					{
-			            tempImage.getPixelVal(k, j, val);
-			            imageVector(k * M + j) = val;
-					}
-				}
-				//cout << "before...";
-				currentImage.setFaceVector(imageVector);
-				//cout << "imageVector->rows: "<< imageVector.rows() << " ImageVector->cols: "<< imageVector.cols();
-				//cout << "after!" << endl;
-
-				//returnVector.push_back(currentImage);
-			}
 			//cout << "avgFaceVector->rows: "<< avgFaceVector.rows() << " avgFaceVector->cols: "<< avgFaceVector.cols();
-			MatrixXi imagePhi = currentImage.getFaceVector() - avgFaceVector;
-			MatrixXd imagePhi_double = imagePhi.cast<double>();
-
-			//cout << "about to extract" << endl;
-			currentImage.ExtractEigenVectors(imagePhi_double, IMG_W, IMG_H);
-
+			for (int i = 0; i < NUM_TEST_SAMPLES; ++i)
+			{
+				phiTesting.push_back(TestImageVector[i].getFaceVector() - avgFaceVector);
+			}
 
 			vector<double> topEigenValues;
 			vector<VectorXd> topEigenVectors;
@@ -490,6 +417,7 @@ int main()
 			double eigenValue;
 			VectorXd eigenVector(IMG_VEC_LEN);
 
+			//LOAD EIGENVALUES/VECTORS
 			fin_vals.open(eigenvaluesFile.c_str());
 			while(!fin_vals.eof())
 			{
@@ -509,14 +437,15 @@ int main()
 				topEigenVectors.push_back(eigenVector);
 			}
 			fin_vecs.close();
+			//DONE
 
-			string omegaVectorsFile = "omegaVectors.txt";
+			//LOAD DATASET'S OMEGA VECTORS
+			VectorXd readVector(K);
 			vector<VectorXd> omegaVectors;
+			string omegaVectorsFile = "omegaVectors.txt";
 
 			ifstream fin_omegas;
 			fin_omegas.open(omegaVectorsFile.c_str());
-			
-			VectorXd readVector(K);
 
 			for (int i = 0; i < NUM_SAMPLES; ++i)
 			{
@@ -527,62 +456,126 @@ int main()
 				}
 				omegaVectors.push_back(readVector);
 			}
-
 			fin_omegas.close();
+			//DONE
 
-			VectorXd wVector(K);
 
-			VectorXd phi_hat = VectorXd::Zero(IMG_VEC_LEN);
-			for (unsigned j = 0; j < K; j++)
+			string folder = "Recognition/";
+			//cout << "folder->" << folder << endl;
+			mkdir(folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
+			ofstream fout_results;
+			string recognitionFile = folder + "recognitionResults.txt";
+			fout_results.open(recognitionFile.c_str());
+
+			//HEADER OF OUTPUT FILE
+			fout_results << "N_value CorrectlyIdentified IncorrectlyIdentified Performance" << endl;
+
+			cout << "Beginning face recognition sequence (N from 0-50)..." << endl;
+			for (int N = 1; N < 51; ++N)
 			{
-				MatrixXd u_t = ((MatrixXd)topEigenVectors[j]).transpose();
-				MatrixXd phi_i = (imagePhi).cast<double>();
-				double w = (u_t * phi_i)(0, 0);
-				wVector(j) = w;
-		 		//cout << w << " ";
-		 		//fout_omega_vecs << w;
+				cout << "COMPUTING N=" << N << " PERFORMANCE..." << endl;
 
-				if (j < K - 1)	// if not last element
-					//fout_omega_vecs << " ";
+				int correctlyIdentifiedImages = 0;
+				int incorrectlyIdentifiedImages = 0;
 
-				phi_hat += w * topEigenVectors[j];
+				//RUN RECOGNITION ON EVERY TESTING IMAGE
+				for (unsigned l = 0; l < phiTesting.size(); ++l)
+				{
+					//GENERATE IMAGE'S W VECTOR
+					VectorXd wVector(K);
+					VectorXd phi_hat = VectorXd::Zero(IMG_VEC_LEN);
+					for (unsigned j = 0; j < K; j++)
+					{
+						MatrixXd u_t = ((MatrixXd)topEigenVectors[j]).transpose();
+						MatrixXd phi_i = (phiTesting[l]).cast<double>();
+						double w = (u_t * phi_i)(0, 0);
+						wVector(j) = w;
+				 		//cout << w << " ";
+					}
+					//DONE
+
+
+					queue<int> identifierQueue;
+					queue<double> errorQueue;
+					//cout << "calculating e_r..." << endl;
+					double e_r;
+					//Compare omegaVectors for norm. min of all those is e_r
+					for (int i = 0; i < NUM_SAMPLES; ++i)
+					{
+						double diffSum=0;
+						for (unsigned j = 0; j < K; ++j)
+						{
+							//(image w - database image w)^2
+							diffSum += (wVector(j) - omegaVectors[i](j)) * (wVector(j) - omegaVectors[i](j));
+						}
+
+						if(i==0)
+						{
+							e_r = diffSum;
+							errorQueue.push(e_r);
+							identifierQueue.push(ImageVector[i].GetIdentifier());
+						}
+						else if(e_r > diffSum)
+						{
+							//cout << "New min-> " << e_r << endl;
+							e_r = diffSum;
+
+							errorQueue.push(e_r);
+							identifierQueue.push(ImageVector[i].GetIdentifier());
+
+							if(errorQueue.size() > N)
+							{
+								errorQueue.pop();
+								identifierQueue.pop();
+							}
+						}
+						//cout << "e_r: " << e_r << endl;
+					}
+
+					bool foundCorrectImage = false;
+					while(!errorQueue.empty()) //(unsigned i = 0; i < errorQueue.size(); ++i)
+					{
+						int tempInt = identifierQueue.front();
+						identifierQueue.pop();
+						//int tempDouble = errorQueue.front();
+						errorQueue.pop();
+						//cout << "QUEUE (e_r, id): " << tempDouble << " | " << tempInt << endl;
+						//cout << "identifierQueue[i]: " << tempInt << endl;
+						//cout << "TestImageVector[l].GetIdentifier(): " << TestImageVector[l].GetIdentifier() << endl;
+						if(tempInt == TestImageVector[l].GetIdentifier() && !foundCorrectImage)
+						{
+							foundCorrectImage = true;
+							//cout << "Identified correct image!" << endl;
+						}
+					}
+
+					//fout_results << foundCorrectImage << endl;
+
+					if(foundCorrectImage)
+					{
+						correctlyIdentifiedImages++;
+					}
+					else
+					{
+						incorrectlyIdentifiedImages++;
+					}
+				}
+
+				int sumID = correctlyIdentifiedImages+incorrectlyIdentifiedImages;
+				float performance = (float)correctlyIdentifiedImages / (float)sumID;
+
+				fout_results << N << " " << correctlyIdentifiedImages << " " << incorrectlyIdentifiedImages << " " << performance << endl;
+
+				cout << "correctlyIdentifiedImages: " << correctlyIdentifiedImages << endl;
+				cout << "incorrectlyIdentifiedImages: " << incorrectlyIdentifiedImages << endl;
+				//DONE
+
+				cout << "DONE" << endl;
 			}
-			cout << endl;
-
-			phi_hat += avgFaceVector.cast<double>();
-			MatrixXi phi_hat_int = phi_hat.cast<int>();
-
-			//cout << wVector << endl;
-
-			cout << "calculating e_r..." << endl;
-			double e_r;
-			//Compare omegaVectors for norm. min of all those is e_r
-			for (int i = 0; i < NUM_SAMPLES; ++i)
-			{
-				double diffSum=0;
-				for (unsigned j = 0; j < K; ++j)
-				{
-					//(image w - database image w)^2
-					diffSum += (wVector(j) - omegaVectors[i](j)) * (wVector(j) - omegaVectors[i](j));
-				}
-
-				if(i==0)
-				{
-					e_r = diffSum;
-				}
-				else if(e_r > diffSum)
-				{
-					//cout << "New min-> " << e_r << endl;
-					e_r = diffSum;
-				}
-			}
-			cout << "e_r: " << e_r << endl;
+			fout_results.close();
 		}
-		else if (inputString == "7") //Initialize images
-		{
-			TestImageVector = obtainTrainingFaces(testingDataset, IMG_W, IMG_H);
-			cout << "ImageVector.size() = " << ImageVector.size() << endl;
-		}
+
 
 		cout << endl;
 	} while (inputString != "-1");
